@@ -1,0 +1,47 @@
+name:          harakiri
+version:       0.1.0.0
+synopsis:      Compiler for a harakiri language
+description:   Compiler for a harakiri language
+homepage:      https://github.com/cyberfined/harakiri
+bug-reports:   https://github.com/cyberfined/harakiri/issues
+author:        cyberfined
+maintainer:    cyberfined@protonmail.com
+copyright:     Copyright (c) cyberfined
+license:       OtherLicense
+license-file:  LICENSE
+category:      Compilers
+build-type:    Simple
+cabal-version: >= 1.12
+extra-source-files:
+    LICENSE
+    README.md
+
+source-repository head
+  type:     git
+  location: https://github.com/cyberfined/harakiri
+
+library
+  exposed-modules: Harakiri
+  --other-modules:
+  hs-source-dirs:
+      src
+  ghc-options: -Wall
+  build-depends:
+      base >= 4.7 && < 5
+    , data-fix >= 0.3 && < 1
+    , megaparsec >= 9 && < 10
+    , parser-combinators >= 1.2 && < 2
+    , text >= 1.2 && < 2
+    , unordered-containers >= 0.2 && < 1
+    , containers >= 0.6 && < 1
+  default-language: Haskell2010
+
+executable harakiri
+  main-is: Main.hs
+  hs-source-dirs:
+      main
+  ghc-options: -Wall
+  build-depends:
+      base >= 4.7 && < 5
+    , harakiri
+  default-language: Haskell2010
