@@ -24,7 +24,7 @@ def print_interval(from, to) {
 def main() {
     echo("Enter mode: 0 - interval printer, 1 - fibonacci calculator")
     a = -1
-    while {
+    while 1 {
         a = input()
         if a != 0 && a != 1 {
             echo("Mode must be equal to 0 or 1")
@@ -49,21 +49,21 @@ def main() {
 
 ## Supported operations
 
-| operation | unary or binary | description    |
-|-----------|-----------------|----------------|
-| !         | unary           | boolean not    |
-| ~         | unary           | bitwise not    |
-| -         | unary           | negate         |
-| +         | binary          | addition       |
-| -         | binary          | subtraction    |
-| *         | binary          | multiplication |
-| /         | binary          | division       |
-| %         | binary          | mod            |
-| &         | binary          | bitwise and    |
-| \|        | binary          | bitwise or     |
-| ^         | binary          | bitwise xor    |
-| &&        | binary          | boolean and    |
-| \|\|      | binary          | boolean or     |
+| operation | unary or binary | description              |
+|-----------|-----------------|--------------------------|
+| -         | unary           | negate                   |
+| +         | binary          | addition                 |
+| -         | binary          | subtraction              |
+| *         | binary          | multiplication           |
+| /         | binary          | division                 |
+| ==        | binary          | equal to                 |
+| !=        | binary          | not equal to             |
+| <         | binary          | lower than               |
+| <=        | binary          | lower than or equal to   |
+| >         | binary          | greater than             |
+| >=        | binary          | greater than or equal to |
+| &&        | binary          | boolean and              |
+| \|\|      | binary          | boolean or               |
 
 ## Implemented parts
 
