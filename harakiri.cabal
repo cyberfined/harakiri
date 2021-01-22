@@ -24,6 +24,7 @@ library
   exposed-modules:
       Harakiri
     , Harakiri.Expr
+    , Harakiri.Parser
   other-modules:
       Harakiri.Expr.Types
     , Harakiri.Expr.Annotated
@@ -48,5 +49,22 @@ executable harakiri
   ghc-options: -Wall
   build-depends:
       base >= 4.7 && < 5
+    , text >= 1.2 && < 2
+    , harakiri
+  default-language: Haskell2010
+
+test-suite higer-test
+  type: exitcode-stdio-1.0
+  main-is: Main.hs
+  other-modules:
+      ParserTests
+    , Common
+  hs-source-dirs:
+      tests
+  ghc-options: -Wall
+  build-depends:
+      base >= 4.7 && < 5
+    , HUnit >= 1.6 && < 2
+    , text >= 1.2 && < 2
     , harakiri
   default-language: Haskell2010

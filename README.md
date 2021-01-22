@@ -67,7 +67,7 @@ def main() {
 
 ## Implemented parts
 
-- [ ] Parser
+- [x] Parser
 - [ ] Type checker
 - [ ] IR generation
 - [ ] Assembly language code generation
