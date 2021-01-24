@@ -2,20 +2,17 @@
 
 module Main (main) where
 
-import qualified Data.Text as Text
 import qualified Data.Text.IO as TIO
 import Harakiri
 
-code :: Text.Text
-code = Text.unlines [ "def fib(n) {"
-                    , "    if n <= 2 {"
-                    , "        return 1"
-                    , "    }"
-                    , "    return fib(n-1) + fib(n-2)"
-                    , "}"
-                    ]
-
 main :: IO ()
-main = case parseFromText "main.hk" code of
-    Left err    -> putStrLn err
-    Right funcs -> TIO.putStr $ Text.unlines $ map (showFunction . fmap stripAnnotation) funcs
+main = do
+    sourceCode <- TIO.readFile src
+    case parseFromText src sourceCode of
+        Left parseErr -> TIO.putStrLn parseErr
+        Right funcs -> case typeCheck sourceCode funcs of
+            Nothing -> do
+                TIO.putStrLn "Successful type checking. Syntax tree is:"
+                mapM_ (TIO.putStrLn . showFunction . fmap stripAnnotation) funcs
+            Just typeError -> TIO.putStrLn typeError
+  where src = "test.hk"
