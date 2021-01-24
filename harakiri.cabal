@@ -32,6 +32,9 @@ library
   hs-source-dirs:
       src
   ghc-options: -Wall
+  default-extensions:
+      OverloadedStrings
+    , LambdaCase
   build-depends:
       base >= 4.7 && < 5
     , data-fix >= 0.3 && < 1
@@ -62,6 +65,8 @@ test-suite higer-test
   hs-source-dirs:
       tests
   ghc-options: -Wall
+  default-extensions:
+      OverloadedStrings
   build-depends:
       base >= 4.7 && < 5
     , HUnit >= 1.6 && < 2

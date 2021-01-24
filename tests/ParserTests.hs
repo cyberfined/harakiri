@@ -1,18 +1,15 @@
-{-# LANGUAGE OverloadedStrings #-}
-
 module ParserTests (tests) where
 
 import Data.Text (Text, unpack, unlines)
 import Test.HUnit
-import Prelude hiding (unlines)
+import Prelude hiding (unlines, lines)
 
 import Common
-import Harakiri.Expr
-import Harakiri.Parser
+import Harakiri
 
 tests :: Test
 tests = mkTestLabel "parser tests"
-    [ assertParseML
+    [ assertParse
         [ "def main() {"
         , "a = input()"
         , "b = input()"
@@ -29,7 +26,7 @@ tests = mkTestLabel "parser tests"
                      ]
             ]
         ]
-    , assertParseML
+    , assertParse
         [ "def print_interval(from, to) {"
         , "while from < to {"
         , "echo(from)"
@@ -61,7 +58,7 @@ tests = mkTestLabel "parser tests"
                   , mkEcho [ExprArg (mkVar "a" $+ (mkVar "b" $* mkVar "b"))]
                   ]
         ]
-    , assertParseML
+    , assertParse
         [ "def main() {"
         , "a = 1"
         , "a = -a + 8"
@@ -87,7 +84,7 @@ tests = mkTestLabel "parser tests"
                   , mkEcho [ExprArg (mkVar "a")]
                   ]
         ]
-    , assertParseML
+    , assertParse
         [ "def main() {"
         , "while 1 {"
         , "a = input()"
@@ -105,53 +102,49 @@ tests = mkTestLabel "parser tests"
                              ]
                       ]
         ]
-    , assertParseFailML
+    , assertParseFail
         [ "def main() {"
         , "123 = a"
         , "}"
         ]
-    , assertParseFailML
+    , assertParseFail
         [ "def main() {"
         , "if a = 123 {"
         , "a = 5"
         , "}"
         , "}"
         ]
-    , assertParseFailML
+    , assertParseFail
         [ "def main() {"
         , "input()"
         , "}"
         ]
-    , assertParseFailML
+    , assertParseFail
         [ "def main() {"
         , "a = input(1, 2)"
         , "}"
         ]
-    , assertParseFailML
+    , assertParseFail
         [ "def main() {"
         , "a = break"
         , "}"
         ]
     ]
 
-assertParseML :: [Text] -> [Function Expr] -> Assertion
-assertParseML src = assertParse (unlines src)
-
-assertParse :: Text -> [Function Expr] -> Assertion
-assertParse src expected = case parseFromText "<string>" src of
+assertParse :: [Text] -> [Function Expr] -> Assertion
+assertParse lines expected = case parseFromText "<string>" src of
     Left err ->
-        assertFailure $ "Unexpected error parsing `" ++ unpack src ++ "`:\n" ++ err
+        assertFailure $ "Unexpected error parsing `" ++ unpack src ++ "`:\n" ++ unpack err
     Right actual ->
         assertEqual ("When parsing " ++ unpack src)
             (ShowFunctions expected) (ShowFunctions $ map (fmap stripAnnotation) actual)
+  where src = unlines lines
 
-assertParseFailML :: [Text] -> Assertion
-assertParseFailML = assertParseFail . unlines
-
-assertParseFail :: Text -> Assertion
-assertParseFail src = case parseFromText "<string>" src of
+assertParseFail :: [Text] -> Assertion
+assertParseFail lines = case parseFromText "<string>" src of
     Left _ -> return ()
     Right res ->
         assertFailure $ "Unexpected success parsing `"
             ++ unpack src ++ "`:\nParsed value "
             ++ show (ShowFunctions $ map (fmap stripAnnotation) res)
+  where src = unlines lines

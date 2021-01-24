@@ -1,8 +1,6 @@
 {-# LANGUAGE DeriveFunctor     #-}
 {-# LANGUAGE DeriveFoldable    #-}
 {-# LANGUAGE DeriveTraversable #-}
-{-# LANGUAGE LambdaCase        #-}
-{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE StrictData        #-}
 
 module Harakiri.Expr.Types
@@ -173,10 +171,9 @@ showBinop = \case
     And -> "&&"
     Or  -> "||"
 
-data Type = TInt | TString | TVoid deriving Eq
+data Type = TInt | TVoid deriving Eq
 
 showType :: Type -> Text
 showType = \case
     TInt    -> "int"
-    TString -> "string"
     TVoid   -> "void"

@@ -1,5 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
-
 module Harakiri.Parser (parseFromText) where
 
 import Control.Monad (void, when)
@@ -23,9 +21,9 @@ import qualified Harakiri.Expr as Expr
 
 type Parser = Parsec Void Text
 
-parseFromText :: String -> Text -> Either String [Function PosExpr]
+parseFromText :: String -> Text -> Either Text [Function PosExpr]
 parseFromText fpath src = case parse pRootExpr fpath src of
-    Left err  -> Left $ errorBundlePretty err
+    Left err  -> Left $ pack $ errorBundlePretty err
     Right res -> Right res
 
 pRootExpr :: Parser [Function PosExpr]
