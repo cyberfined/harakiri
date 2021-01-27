@@ -5,7 +5,8 @@ import Test.HUnit
 import Prelude hiding (unlines, lines)
 
 import Common
-import Harakiri
+import Harakiri.Parser
+import Harakiri.TypeCheck
 
 tests :: Test
 tests = mkTestLabel "type checker tests"
@@ -86,6 +87,14 @@ tests = mkTestLabel "type checker tests"
     , assertTypeCheckFail
         [ "def fun(n) {"
         , "a = b - 7"
+        , "}"
+        ]
+    , assertTypeCheckFail
+        [ "def fun(a, b, c, c) {"
+        , "a = b + c + c"
+        , "}"
+        , "def main() {"
+        , "fun(1, 2, 3, 4)"
         , "}"
         ]
     ]

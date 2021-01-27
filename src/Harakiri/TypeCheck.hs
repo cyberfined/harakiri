@@ -74,7 +74,7 @@ typeCheck src funcs = case runExcept (evalStateT checkAll initState) of
                                , curNesting      = 0
                                , returnInNonVoid = True
                                }
-        iniPos = SourcePos "" 0 0
+        iniPos = SourcePos "" 1 1
 
 typeCheckExprF :: ExprF (TypeCheckM Type) -> TypeCheckM Type
 typeCheckExprF = \case
@@ -179,14 +179,18 @@ prettyError err = do
     lift $ throwE $ errMsg <> prettyLine
 
 resetCheckState :: Text -> [Text] -> FuncInfo -> TypeCheckM ()
-resetCheckState fName args fInfo =
-    modify $ \st -> st { definedVars     = HashSet.fromList args
-                       , curNesting      = 0
-                       , inLoop          = False
-                       , returnInNonVoid = True
-                       , curFunName      = fName
-                       , curFinfo        = fInfo
-                       }
+resetCheckState fName args fInfo
+  | length args /= HashSet.size defVars
+  = prettyError $ "duplicated arguments in function " <> fName
+  | otherwise = modify newState
+  where defVars = HashSet.fromList args
+        newState st = st { definedVars     = defVars
+                         , curNesting      = 0
+                         , inLoop          = False
+                         , returnInNonVoid = True
+                         , curFunName      = fName
+                         , curFinfo        = fInfo
+                         }
 
 insertFuncInfo :: Text -> FuncInfo -> TypeCheckM ()
 insertFuncInfo fName fInfo =
