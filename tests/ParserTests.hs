@@ -5,7 +5,8 @@ import Test.HUnit
 import Prelude hiding (unlines, lines)
 
 import Common
-import Harakiri
+import Harakiri.Expr
+import Harakiri.Parser
 
 tests :: Test
 tests = mkTestLabel "parser tests"

@@ -2,8 +2,11 @@
 
 module Main (main) where
 
+import Harakiri.Expr
+import Harakiri.Parser
+import Harakiri.TypeCheck
+
 import qualified Data.Text.IO as TIO
-import Harakiri
 
 main :: IO ()
 main = do

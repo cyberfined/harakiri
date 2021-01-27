@@ -22,8 +22,7 @@ source-repository head
 
 library
   exposed-modules:
-      Harakiri
-    , Harakiri.Expr
+      Harakiri.Expr
     , Harakiri.Parser
     , Harakiri.TypeCheck
   other-modules:
