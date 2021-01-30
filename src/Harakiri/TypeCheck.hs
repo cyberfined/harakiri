@@ -102,20 +102,29 @@ typeCheckExprF = \case
                   forM_ args $ \arg ->
                       typeMismatchError arg "non-integer arguments are not allowed"
                   return $ fromMaybe TVoid (returnType fInfo)
-    Echo{} -> return TVoid
+    Echo args -> do
+        forM_ args $ \case
+            StrArg{}  -> return ()
+            ExprArg e -> void e
+        return TVoid
     Input  -> return TInt
     Assign var val -> do
         void $ typeMismatchError val ("trying to assign non-integer value to " <> var)
         defineVar var
         return TVoid
     If cond th el -> do
+        beforeIfVars <- gets definedVars
         void $ typeMismatchError cond "non-integer statement in if condition"
         void $ th
+        modify (\st -> st { definedVars = beforeIfVars })
         maybe (return ()) void el
+        modify (\st -> st { definedVars = beforeIfVars })
         return TVoid
     While cond body -> do
+        beforeWhileVars <- gets definedVars
         void $ typeMismatchError cond "non-integer statement in while condition"
         void $ body
+        modify (\st -> st { definedVars = beforeWhileVars })
         return TVoid
     Break -> do
         isInLoop <- gets inLoop

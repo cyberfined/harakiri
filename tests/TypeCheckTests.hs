@@ -45,6 +45,28 @@ tests = mkTestLabel "type checker tests"
         , "}"
         , "}"
         ]
+    , assertTypeCheck
+        [ "def main() {"
+        , "while 1 {"
+        , "a = input()"
+        , "if a != 9 {"
+        , "break"
+        , "}"
+        , "}"
+        , "}"
+        ]
+    , assertTypeCheck
+        [ "def main() {"
+        , "c = 0"
+        , "a = input()"
+        , "if a < 7 {"
+        , "c = 10"
+        , "} else {"
+        , "c = 11"
+        , "}"
+        , "echo(c)"
+        , "}"
+        ]
     , assertTypeCheckFail
         [ "def main() {"
         , "break"
@@ -95,6 +117,38 @@ tests = mkTestLabel "type checker tests"
         , "}"
         , "def main() {"
         , "fun(1, 2, 3, 4)"
+        , "}"
+        ]
+    , assertTypeCheckFail
+        [ "def main() {"
+        , "a = input()"
+        , "if a < 7 {"
+        , "c = 7"
+        , "}"
+        , "echo(c)"
+        , "}"
+        ]
+    , assertTypeCheckFail
+        [ "def main() {"
+        , "a = input()"
+        , "if a < 8 {"
+        , "c = 7"
+        , "} else {"
+        , "c = 8"
+        , "}"
+        , "echo(c)"
+        , "}"
+        ]
+    , assertTypeCheckFail
+        [ "def main() {"
+        , "while 1 {"
+        , "a = input()"
+        , "c = a + 1"
+        , "if a == 7 {"
+        , "break"
+        , "}"
+        , "}"
+        , "echo(c)"
         , "}"
         ]
     ]
