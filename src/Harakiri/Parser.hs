@@ -11,6 +11,7 @@ import Text.Megaparsec hiding (pos1)
 import Text.Megaparsec.Char hiding (space)
 
 import Harakiri.Expr hiding (SourcePos(..), ($>))
+import Harakiri.SourceCode
 
 import qualified Data.HashSet as HashSet
 import qualified Text.Megaparsec.Char.Lexer as Lexer
@@ -21,8 +22,8 @@ import qualified Harakiri.Expr as Expr
 
 type Parser = Parsec Void Text
 
-parseFromText :: String -> Text -> Either Text [Function PosExpr]
-parseFromText fpath src = case parse pRootExpr fpath src of
+parseFromText :: String -> SourceCode -> Either Text [Function PosExpr]
+parseFromText fpath src = case parse pRootExpr fpath (getSourceCode src) of
     Left err  -> Left $ pack $ errorBundlePretty err
     Right res -> Right res
 

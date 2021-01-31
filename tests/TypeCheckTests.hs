@@ -6,6 +6,7 @@ import Prelude hiding (unlines, lines)
 
 import Common
 import Harakiri.Parser
+import Harakiri.SourceCode
 import Harakiri.TypeCheck
 
 tests :: Test
@@ -154,20 +155,20 @@ tests = mkTestLabel "type checker tests"
     ]
 
 assertTypeCheck :: [Text] -> Assertion
-assertTypeCheck lines = case parseFromText "<string>" src of
+assertTypeCheck lines = case parseFromText "<string>" (SourceCode src) of
     Left parseErr -> assertFailure $
         "Unexpected error parsing `" ++ unpack src ++ "`:\n" ++ unpack parseErr
-    Right funcs -> case typeCheck src funcs of
+    Right funcs -> case typeCheck (SourceCode src) funcs of
         Just checkErr -> assertFailure $
             "Unexpected error type checking `" ++ unpack src ++ "`:\n" ++ unpack checkErr
         Nothing -> return ()
   where src = unlines lines
 
 assertTypeCheckFail :: [Text] -> Assertion
-assertTypeCheckFail lines = case parseFromText "<string>" src of
+assertTypeCheckFail lines = case parseFromText "<string>" (SourceCode src) of
     Left err -> assertFailure $
         "Unexpected error parsing `" ++ unpack src ++ "`:\n" ++ unpack err
-    Right funcs -> case typeCheck src funcs of
+    Right funcs -> case typeCheck (SourceCode src) funcs of
         Nothing -> assertFailure $
             "Unexpected success type checking `" ++ unpack src ++ "`:\n"
         Just{} -> return ()

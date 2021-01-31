@@ -7,6 +7,7 @@ import Prelude hiding (unlines, lines)
 import Common
 import Harakiri.Expr
 import Harakiri.Parser
+import Harakiri.SourceCode
 
 tests :: Test
 tests = mkTestLabel "parser tests"
@@ -133,7 +134,7 @@ tests = mkTestLabel "parser tests"
     ]
 
 assertParse :: [Text] -> [Function Expr] -> Assertion
-assertParse lines expected = case parseFromText "<string>" src of
+assertParse lines expected = case parseFromText "<string>" (SourceCode src) of
     Left err ->
         assertFailure $ "Unexpected error parsing `" ++ unpack src ++ "`:\n" ++ unpack err
     Right actual ->
@@ -142,7 +143,7 @@ assertParse lines expected = case parseFromText "<string>" src of
   where src = unlines lines
 
 assertParseFail :: [Text] -> Assertion
-assertParseFail lines = case parseFromText "<string>" src of
+assertParseFail lines = case parseFromText "<string>" (SourceCode src) of
     Left _ -> return ()
     Right res ->
         assertFailure $ "Unexpected success parsing `"

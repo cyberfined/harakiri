@@ -1,11 +1,12 @@
+{-# LANGUAGE ConstraintKinds  #-}
+{-# LANGUAGE FlexibleContexts #-}
+
 module Harakiri.IR.Translate (functionToIR) where
 
+import Control.Monad.Except
+import Control.Monad.Reader
+import Control.Monad.State
 import Data.Fix (foldFix)
-import Control.Monad (forM, void)
-import Control.Monad.Trans.Class (lift)
-import Control.Monad.Trans.Except
-import Control.Monad.Trans.Reader
-import Control.Monad.Trans.State
 import Data.HashMap.Strict (HashMap)
 import Data.Maybe (fromMaybe)
 import Data.Sequence (Seq, ViewR(..), viewr, (|>), (><))
@@ -20,7 +21,10 @@ import qualified Data.Sequence as Seq
 
 import qualified Harakiri.Expr as Expr
 
-type TransM = StateT TransState (ReaderT TransContext (Except Text))
+type TransM m = ( MonadReader TransContext m
+                , MonadState TransState m
+                , MonadError Text m
+                )
 
 data TransState = TransState
     { nextTemp     :: !Temp
@@ -62,7 +66,7 @@ functionToIR func = case runExcept (runReaderT (execStateT run initState) initCt
                                , binopToRelop = False
                                }
 
-transExprF :: ExprF (TransM (Maybe Operand)) -> TransM (Maybe Operand)
+transExprF :: TransM m => ExprF (m (Maybe Operand)) -> m (Maybe Operand)
 transExprF = \case
     Expr.IntLit i -> do
         mdst <- getDstTempMaybe
@@ -96,7 +100,7 @@ transExprF = \case
         Expr.Eq  -> transRelop mop1 Eq mop2
         Expr.Ne  -> transRelop mop1 Ne mop2
         Expr.And -> do
-            needValue <- lift $ asks condValue
+            needValue <- asks condValue
             trueLbl <- newLabel
             withBinopToRelop True $ withCondValue False $
                 if needValue
@@ -121,7 +125,7 @@ transExprF = \case
                        void mop2
                        return Nothing
         Expr.Or -> do
-            needValue <- lift $ asks condValue
+            needValue <- asks condValue
             falseLbl <- newLabel
             withBinopToRelop True $ withCondValue False $
                 if needValue
@@ -226,17 +230,18 @@ transExprF = \case
         return Nothing
   where returnOperand = return . Just
 
-operandToRelop :: TransM (Maybe Operand) -> TransM (Maybe Operand)
+operandToRelop :: TransM m => m (Maybe Operand) -> m (Maybe Operand)
 operandToRelop op = do
-    binToRel <- lift $ asks binopToRelop
+    binToRel <- asks binopToRelop
     if binToRel
        then transRelop op Ne (return $ Just $ Const 0)
        else op
 
-transBinop :: TransM (Maybe Operand)
+transBinop :: TransM m
+           => m (Maybe Operand)
            -> Binop
-           -> TransM (Maybe Operand)
-           -> TransM (Maybe Operand)
+           -> m (Maybe Operand)
+           -> m (Maybe Operand)
 transBinop mop1 binop mop2 = operandToRelop $ do
     dst <- getDstTemp
     src1 <- withCondValue True (getOperand mop1)
@@ -244,12 +249,13 @@ transBinop mop1 binop mop2 = operandToRelop $ do
     emitIR (Binop binop dst src1 src2)
     return (Just $ Temp dst)
 
-transRelop :: TransM (Maybe Operand)
+transRelop :: TransM m
+           => m (Maybe Operand)
            -> Relop
-           -> TransM (Maybe Operand)
-           -> TransM (Maybe Operand)
+           -> m (Maybe Operand)
+           -> m (Maybe Operand)
 transRelop mop1 relop mop2 = do
-    needValue <- lift $ asks condValue
+    needValue <- asks condValue
     src1 <- withBinopToRelop False $ getOperand mop1
     src2 <- withBinopToRelop False $ getOperand mop2
 
@@ -273,7 +279,7 @@ transRelop mop1 relop mop2 = do
 
     return res
 
-backpatchIfNeed :: (Label -> TransM a) -> TransM (Seq IR, Label)
+backpatchIfNeed :: TransM m => (Label -> m a) -> m (Seq IR, Label)
 backpatchIfNeed ma = do
     newLbl <- newLabel
     bakCode <- gets code
@@ -296,29 +302,29 @@ backpatchIfNeed ma = do
                   | otherwise     -> patch restCode repLbl toLbl |> lastInstr
                 _                 -> patch restCode repLbl toLbl |> lastInstr
 
-emitIR :: IR -> TransM ()
+emitIR :: TransM m => IR -> m ()
 emitIR ir = modify (\st -> st { code = code st |> ir })
 
-getOperand :: TransM (Maybe Operand) -> TransM Operand
+getOperand :: TransM m => m (Maybe Operand) -> m Operand
 getOperand ma = do
     mop <- ma
     case mop of
         Just op -> return op
         Nothing -> throwError "unexpected nothing instead of operand"
 
-newTemp :: TransM Temp
+newTemp :: TransM m => m Temp
 newTemp = do
     temp@(T tid) <- gets nextTemp
     modify (\st -> st { nextTemp = T (tid + 1) })
     return temp
 
-newLabel :: TransM Label
+newLabel :: TransM m => m Label
 newLabel = do
     lbl@(L lid) <- gets nextLabel
     modify (\st -> st { nextLabel = L (lid + 1) })
     return lbl
 
-getStringId :: Text -> TransM Int
+getStringId :: TransM m => Text -> m Int
 getStringId str = do
     strIds <- gets strings
     case HashMap.lookup str strIds of
@@ -331,7 +337,7 @@ getStringId str = do
             return nextId
         Just strId -> return strId
 
-getBeginLabel :: TransM Label
+getBeginLabel :: TransM m => m Label
 getBeginLabel = do
     codeSeq <- gets code
     case viewr codeSeq of
@@ -342,11 +348,11 @@ getBeginLabel = do
                 return lbl
             _ -> newLabel
 
-insertVarTemp :: Text -> Temp -> TransM ()
+insertVarTemp :: TransM m => Text -> Temp -> m ()
 insertVarTemp var temp =
     modify (\st -> st { variables = HashMap.insert var temp $ variables st })
 
-newVarTemp :: Text -> TransM Temp
+newVarTemp :: TransM m => Text -> m Temp
 newVarTemp var = do
     vars <- gets variables
     case HashMap.lookup var vars of
@@ -356,60 +362,56 @@ newVarTemp var = do
             return temp
         Just temp -> return temp
 
-getVarTemp :: Text -> TransM Temp
+getVarTemp :: TransM m => Text -> m Temp
 getVarTemp var = do
     mtemp <- gets (HashMap.lookup var . variables)
     maybe (throwError $ "undefined variable " <> var) return mtemp
 
-withEndLabel :: Label -> TransM a -> TransM a
-withEndLabel lbl = mapStateT (local (\ctx -> ctx { endLabel = Just lbl }))
+withEndLabel :: TransM m => Label -> m a -> m a
+withEndLabel lbl = local (\ctx -> ctx { endLabel = Just lbl })
 
-withTrueLabel :: Label -> TransM a -> TransM a
-withTrueLabel lbl = mapStateT (local (\ctx -> ctx { trueLabel = Just lbl }))
+withTrueLabel :: TransM m => Label -> m a -> m a
+withTrueLabel lbl = local (\ctx -> ctx { trueLabel = Just lbl })
 
-withFalseLabel :: Label -> TransM a -> TransM a
-withFalseLabel lbl = mapStateT (local (\ctx -> ctx { falseLabel = Just lbl }))
+withFalseLabel :: TransM m => Label -> m a -> m a
+withFalseLabel lbl = local (\ctx -> ctx { falseLabel = Just lbl })
 
-withTrueFalseLabels :: Label -> Label -> TransM a -> TransM a
-withTrueFalseLabels trueLbl falseLbl = mapStateT $
-    local (\ctx -> ctx { trueLabel  = Just trueLbl
-                       , falseLabel = Just falseLbl
-                       })
+withTrueFalseLabels :: TransM m => Label -> Label -> m a -> m a
+withTrueFalseLabels trueLbl falseLbl = local $ \ctx -> ctx { trueLabel  = Just trueLbl
+                                                           , falseLabel = Just falseLbl
+                                                           }
 
-withCondValue :: Bool -> TransM a -> TransM a
-withCondValue val = mapStateT (local (\ctx -> ctx { condValue = val }))
+withCondValue :: TransM m => Bool -> m a -> m a
+withCondValue val = local (\ctx -> ctx { condValue = val })
 
-getDstTemp :: TransM Temp
+getDstTemp :: TransM m => m Temp
 getDstTemp = do
     mdst <- getDstTempMaybe
     fromMaybe newTemp (return <$> mdst)
 
-getDstTempMaybe :: TransM (Maybe Temp)
+getDstTempMaybe :: TransM m => m (Maybe Temp)
 getDstTempMaybe = do
     mdst <- gets dstTemp
     modify (\st -> st { dstTemp = Nothing })
     return mdst
 
-setDstTemp :: Temp -> TransM ()
+setDstTemp :: TransM m => Temp -> m ()
 setDstTemp temp = modify (\st -> st { dstTemp = Just temp })
 
-withBinopToRelop :: Bool -> TransM a -> TransM a
-withBinopToRelop val = mapStateT (local (\ctx -> ctx { binopToRelop = val }))
+withBinopToRelop :: TransM m => Bool -> m a -> m a
+withBinopToRelop val = local (\ctx -> ctx { binopToRelop = val })
 
-getEndLabel :: TransM Label
+getEndLabel :: TransM m => m Label
 getEndLabel = do
-    lbl <- lift $ asks endLabel
+    lbl <- asks endLabel
     maybe (throwError "end label doesn't exist") return lbl
 
-getTrueLabel :: TransM Label
+getTrueLabel :: TransM m => m Label
 getTrueLabel = do
-    lbl <- lift $ asks trueLabel
+    lbl <- asks trueLabel
     maybe (throwError "true label doesn't exist") return lbl
 
-getFalseLabel :: TransM Label
+getFalseLabel :: TransM m => m Label
 getFalseLabel = do
-    lbl <- lift $ asks falseLabel
+    lbl <- asks falseLabel
     maybe (throwError "false label doesn't exist") return lbl
-
-throwError :: Text -> TransM a
-throwError = lift . lift . throwE

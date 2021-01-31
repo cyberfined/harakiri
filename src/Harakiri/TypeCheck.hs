@@ -1,9 +1,12 @@
+{-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE ConstraintKinds       #-}
+
 module Harakiri.TypeCheck (typeCheck) where
 
-import Control.Monad.Trans.Class (lift)
-import Control.Monad.Trans.Except
-import Control.Monad.Trans.State
-import Control.Monad (forM_, when, void, unless)
+import Control.Monad.Except
+import Control.Monad.Reader
+import Control.Monad.State
 import Data.Fix
 import Data.Functor.Compose
 import Data.HashMap.Strict (HashMap)
@@ -13,10 +16,11 @@ import Data.Text (Text)
 import Prelude hiding (seq)
 
 import Harakiri.Expr
+import Harakiri.SourceCode
+import Harakiri.Utils
 
 import qualified Data.HashMap.Strict as HashMap
 import qualified Data.HashSet as HashSet
-import qualified Data.Text as Text
 
 data FuncInfo = FuncInfo
     { numArgs    :: !Int
@@ -26,21 +30,34 @@ data FuncInfo = FuncInfo
 data CheckState = CheckState
     { funEnv          :: !(HashMap Text FuncInfo)
     , definedVars     :: !(HashSet Text)
-    , curPos          :: !SrcSpan
-    , sourceCode      :: !Text
-    , inLoop          :: !Bool
-    , curFunName      :: !Text
     , curFinfo        :: !FuncInfo
-    , curNesting      :: !Int
     , returnInNonVoid :: !Bool
     }
 
-type TypeCheckM = StateT CheckState (Except Text)
+data CheckContext = CheckContext
+    { curFunName :: !Text
+    , curPos     :: !SrcSpan
+    , sourceCode :: !SourceCode
+    , inLoop     :: !Bool
+    , curNesting :: !Int
+    }
 
-typeCheck :: Text -> [Function PosExpr] -> Maybe Text
-typeCheck src funcs = case runExcept (evalStateT checkAll initState) of
-    Left err -> Just err
-    Right{}  -> Nothing
+instance Has SourceCode CheckContext where
+    getter = sourceCode
+
+instance Has SrcSpan CheckContext where
+    getter = curPos
+
+type TypeCheckM m = ( MonadReader CheckContext m
+                    , MonadState CheckState m
+                    , MonadError Text m
+                    )
+
+typeCheck :: SourceCode -> [Function PosExpr] -> Maybe Text
+typeCheck src funcs =
+    case runExcept (runReaderT (evalStateT checkAll initState) initCtx) of
+        Left err -> Just err
+        Right{}  -> Nothing
   where checkAll = do
             mapM_ checkFunction funcs
             env <- gets funEnv
@@ -57,26 +74,42 @@ typeCheck src funcs = case runExcept (evalStateT checkAll initState) of
                 fBody = funBody func
             isExists <- checkFuncExists fName
             when isExists (prettyError $ "function " <> fName <> " is already defined")
-            insertFuncInfo fName fInfo
-            resetCheckState fName (funArgs func) fInfo
-            void $ adi (typeCheckExprF . annotated . getCompose) setContext fBody
+            typeCheckPosExpr fName (funArgs func) fInfo fBody
             retInNonVoid <- gets returnInNonVoid
             unless retInNonVoid $
                 prettyError $ "function " <> fName <> " must return a value"
-            return ()
         initState = CheckState { funEnv          = HashMap.empty
                                , definedVars     = HashSet.empty
-                               , curPos          = SrcSpan iniPos iniPos
-                               , inLoop          = False
-                               , sourceCode      = src
-                               , curFunName      = ""
                                , curFinfo        = FuncInfo 0 Nothing
-                               , curNesting      = 0
                                , returnInNonVoid = True
+                               }
+        initCtx = CheckContext { curPos     = SrcSpan iniPos iniPos
+                               , inLoop     = False
+                               , sourceCode = src
+                               , curFunName = ""
+                               , curNesting = 0
                                }
         iniPos = SourcePos "" 1 1
 
-typeCheckExprF :: ExprF (TypeCheckM Type) -> TypeCheckM Type
+typeCheckPosExpr :: TypeCheckM m => Text -> [Text] -> FuncInfo -> PosExpr -> m ()
+typeCheckPosExpr fName args fInfo posExpr
+  | length args /= HashSet.size defVars
+  = prettyError $ "duplicated arguments in function " <> fName
+  | otherwise = local newCtx $ do
+      modify newState
+      void $ adi (typeCheckExprF . annotated . getCompose) setContext posExpr
+  where defVars = HashSet.fromList args
+        newState st = st { definedVars     = defVars
+                         , funEnv          = HashMap.insert fName fInfo $ funEnv st
+                         , returnInNonVoid = True
+                         , curFinfo        = fInfo
+                         }
+        newCtx ctx = ctx { curNesting = 0
+                         , inLoop     = False
+                         , curFunName = fName
+                         }
+
+typeCheckExprF :: TypeCheckM m => ExprF (m Type) -> m Type
 typeCheckExprF = \case
     IntLit{} -> return TInt
     Var var  -> do
@@ -127,7 +160,7 @@ typeCheckExprF = \case
         modify (\st -> st { definedVars = beforeWhileVars })
         return TVoid
     Break -> do
-        isInLoop <- gets inLoop
+        isInLoop <- asks inLoop
         unless isInLoop $ prettyError "break statement outside the while loop"
         return TVoid
     Seq seq -> do
@@ -137,11 +170,11 @@ typeCheckExprF = \case
         actualType <- case mval of
             Nothing  -> return TVoid
             Just val -> do
-                nesting <- gets curNesting
+                nesting <- asks curNesting
                 setReturnInNonVoid (nesting == 0)
                 typeMismatchError val " trying to return non-integer value"
         fInfo <- gets curFinfo
-        fName <- gets curFunName
+        fName <- asks curFunName
         case returnType fInfo of
             Nothing -> do
                 let newfInfo = fInfo { returnType = Just actualType }
@@ -154,94 +187,41 @@ typeCheckExprF = \case
               | otherwise -> return ()
         return TVoid
 
-typeMismatchError :: TypeCheckM Type -> Text -> TypeCheckM Type
+setContext :: TypeCheckM m => (PosExpr -> m Type) -> PosExpr -> m Type
+setContext f = \case
+    expr@(AnnE ann If{}) -> withinIf ann (f expr)
+    expr@(AnnE ann While{}) -> withinLoop ann (f expr)
+    expr -> setCurPos (annotation $ getCompose $ unFix expr) (f expr)
+  where withinIf pos = local $ \ctx -> ctx { curNesting = curNesting ctx + 1
+                                           , curPos = pos
+                                           }
+        withinLoop pos = local $ \ctx -> ctx { curNesting = curNesting ctx + 1
+                                             , inLoop     = True
+                                             , curPos     = pos
+                                             }
+        setCurPos pos = local (\ctx -> ctx { curPos = pos })
+
+typeMismatchError :: TypeCheckM m => m Type -> Text -> m Type
 typeMismatchError ma msg = do
     res <- ma
     when (res /= TInt) $ prettyError msg
     return res
 
-setContext :: (PosExpr -> TypeCheckM Type) -> PosExpr -> TypeCheckM Type
-setContext f = \case
-    expr@(AnnE ann If{}) -> withinNesting $ do
-        setCurPos ann
-        f expr
-    expr@(AnnE ann While{}) -> withinLoop $ withinNesting $ do
-        setCurPos ann
-        f expr
-    expr -> do
-        setCurPos (annotation $ getCompose $ unFix expr)
-        f expr
-
-prettyError :: Text -> TypeCheckM a
-prettyError err = do
-    SourcePos fpath ln cl <- gets (spanBegin . curPos)
-    src <- gets sourceCode
-    let strLn = showText ln
-        margin = Text.replicate (Text.length strLn + 2) " "
-        errMsg =  Text.pack fpath <> ":" <> strLn <> ":" <> showText cl
-               <> ": error:\n" <> err <> "\n"
-        line = Text.takeWhile (/='\n')
-             . (!!(ln-1))
-             . iterate (Text.tail . Text.dropWhile (/= '\n')) $ src
-        prettyLine =  margin <> "|\n " <> strLn <> " | " <> line <> "\n"
-                   <> margin <> "|\n"
-    lift $ throwE $ errMsg <> prettyLine
-
-resetCheckState :: Text -> [Text] -> FuncInfo -> TypeCheckM ()
-resetCheckState fName args fInfo
-  | length args /= HashSet.size defVars
-  = prettyError $ "duplicated arguments in function " <> fName
-  | otherwise = modify newState
-  where defVars = HashSet.fromList args
-        newState st = st { definedVars     = defVars
-                         , curNesting      = 0
-                         , inLoop          = False
-                         , returnInNonVoid = True
-                         , curFunName      = fName
-                         , curFinfo        = fInfo
-                         }
-
-insertFuncInfo :: Text -> FuncInfo -> TypeCheckM ()
-insertFuncInfo fName fInfo =
-    modify (\st -> st { funEnv = HashMap.insert fName fInfo $ funEnv st })
-
-updateFuncInfo :: FuncInfo -> TypeCheckM ()
-updateFuncInfo fInfo =
-    modify $ \st -> st { funEnv   = HashMap.insert (curFunName st) fInfo $ funEnv st
+updateFuncInfo :: TypeCheckM m => FuncInfo -> m ()
+updateFuncInfo fInfo = do
+    fName <- asks curFunName
+    modify $ \st -> st { funEnv   = HashMap.insert fName fInfo $ funEnv st
                        , curFinfo = fInfo
                        }
 
-checkFuncExists :: Text -> TypeCheckM Bool
+checkFuncExists :: TypeCheckM m => Text -> m Bool
 checkFuncExists fName = gets (HashMap.member fName . funEnv)
 
-defineVar :: Text -> TypeCheckM ()
+defineVar :: TypeCheckM m => Text -> m ()
 defineVar var = modify (\st -> st { definedVars = HashSet.insert var $ definedVars st })
 
-checkVarExists :: Text -> TypeCheckM Bool
+checkVarExists :: TypeCheckM m => Text -> m Bool
 checkVarExists var = gets (HashSet.member var . definedVars)
 
-withinLoop :: TypeCheckM a -> TypeCheckM a
-withinLoop ma = do
-    modify (\st -> st { inLoop = True })
-    res <- ma
-    modify (\st -> st { inLoop = False })
-    return res
-
-withinNesting :: TypeCheckM a -> TypeCheckM a
-withinNesting ma = do
-    modify (\st -> st { curNesting = curNesting st - 1})
-    res <- ma
-    modify (\st -> st { curNesting = curNesting st + 1})
-    return res
-
-setReturnInNonVoid :: Bool -> TypeCheckM ()
+setReturnInNonVoid :: TypeCheckM m => Bool -> m ()
 setReturnInNonVoid val = modify (\st -> st { returnInNonVoid = val })
-
-setCurPos :: SrcSpan -> TypeCheckM ()
-setCurPos pos = modify (\st -> st { curPos = pos })
-
-adi :: Functor f => (f a -> a) -> ((Fix f -> a) -> Fix f -> a) -> Fix f -> a
-adi f g = g (f . fmap (adi f g) . unFix)
-
-showText :: Show a => a -> Text
-showText = Text.pack . show

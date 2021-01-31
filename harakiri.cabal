@@ -26,12 +26,14 @@ library
     , Harakiri.Parser
     , Harakiri.TypeCheck
     , Harakiri.IR
+    , Harakiri.SourceCode
   other-modules:
       Harakiri.Expr.Types
     , Harakiri.Expr.Annotated
     , Harakiri.Expr.Shorthands
     , Harakiri.IR.Types
     , Harakiri.IR.Translate
+    , Harakiri.Utils
   hs-source-dirs:
       src
   ghc-options: -Wall
@@ -46,7 +48,7 @@ library
     , text >= 1.2 && < 2
     , unordered-containers >= 0.2 && < 1
     , containers >= 0.6 && < 1
-    , transformers >= 0.5 && < 1
+    , mtl >= 2.2 && < 3
   default-language: Haskell2010
 
 executable harakiri

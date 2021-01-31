@@ -4,13 +4,14 @@ module Main (main) where
 
 import Harakiri.Expr
 import Harakiri.Parser
+import Harakiri.SourceCode
 import Harakiri.TypeCheck
 
 import qualified Data.Text.IO as TIO
 
 main :: IO ()
 main = do
-    sourceCode <- TIO.readFile src
+    sourceCode <- SourceCode <$> TIO.readFile src
     case parseFromText src sourceCode of
         Left parseErr -> TIO.putStrLn parseErr
         Right funcs -> case typeCheck sourceCode funcs of
