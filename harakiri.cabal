@@ -25,10 +25,13 @@ library
       Harakiri.Expr
     , Harakiri.Parser
     , Harakiri.TypeCheck
+    , Harakiri.IR
   other-modules:
       Harakiri.Expr.Types
     , Harakiri.Expr.Annotated
     , Harakiri.Expr.Shorthands
+    , Harakiri.IR.Types
+    , Harakiri.IR.Translate
   hs-source-dirs:
       src
   ghc-options: -Wall
