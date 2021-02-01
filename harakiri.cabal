@@ -31,6 +31,7 @@ library
       Harakiri.Expr.Types
     , Harakiri.Expr.Annotated
     , Harakiri.Expr.Shorthands
+    , Harakiri.Expr.Interpreter
     , Harakiri.IR.Types
     , Harakiri.IR.Translate
     , Harakiri.Utils
