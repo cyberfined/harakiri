@@ -8,7 +8,7 @@ import Data.Functor (($>))
 import Data.Text hiding (empty, cons, length)
 import Data.Void
 import Text.Megaparsec hiding (pos1)
-import Text.Megaparsec.Char hiding (space)
+import Text.Megaparsec.Char hiding (space, newline)
 
 import Harakiri.Expr hiding (SourcePos(..), ($>))
 import Harakiri.SourceCode
@@ -32,7 +32,7 @@ pRootExpr = (:) <$> pFunction <*> many pFunction <* eof
 
 pFunction :: Parser (Function PosExpr)
 pFunction =   Function
-          <$> (reserved "def" *> pId)
+          <$> (space *> reserved "def" *> pId)
           <*> parens (sepBy pId (symbol ","))
           <*> return TVoid
           <*> braces pSeq
@@ -93,7 +93,7 @@ pEcho = annotate1
         pEchoArg = StrArg <$> pStr <|> ExprArg <$> pExpr
 
         pStr :: Parser Text
-        pStr = pack <$> (char '"' *> many pChar <* symbol "\"") <?> "string"
+        pStr = pack <$> (char '"' *> many (pChar <|> newline) <* symbol "\"") <?> "string"
 
         pChar :: Parser Char
         pChar = satisfy $ \x ->
@@ -101,6 +101,9 @@ pEcho = annotate1
             x == ' '               ||
             x >  '"'  && x <  '\\' ||
             x >  '\\' && x <= '~'
+
+        newline :: Parser Char
+        newline = char '\\' >> char 'n' >> return '\n'
 
 pInput :: Parser PosExpr
 pInput = annotate1 (Input <$ reserved "input" <* symbol "(" <* symbol ")")
