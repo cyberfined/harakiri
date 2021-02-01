@@ -104,6 +104,73 @@ tests = mkTestLabel "parser tests"
                              ]
                       ]
         ]
+    , assertParse
+        [ "def main() {"
+        , "a = 5"
+        , "echo(\"a = \", a, \"\\n\")"
+        , "}"
+        ]
+        [ Function "main" [] TVoid $
+            mkSeq [ mkAssign "a" (mkIntLit 5)
+                  , mkEcho [ StrArg "a = "
+                           , ExprArg (mkVar "a")
+                           , StrArg "\n"
+                           ]
+                  ]
+        ]
+    , assertParse
+        [ "def main() {"
+        , "echo(5, \"\\n\\n\\n\")"
+        , "}"
+        ]
+        [ Function "main" [] TVoid $
+            mkEcho [ ExprArg (mkIntLit 5)
+                   , StrArg "\n\n\n"
+                   ]
+        ]
+    , assertParse
+        [ "/*def main() {"
+        , "*/"
+        , "def main() {"
+        , "echo(5)"
+        , "}"
+        ]
+        [ Function "main" [] TVoid $
+            mkEcho [ ExprArg (mkIntLit 5) ]
+        ]
+    , assertParse
+        [ "def main() {"
+        , "/* a = 5"
+        , "   b = 7"
+        , "*/"
+        , "a = 7"
+        , "b = 5"
+        , "echo(a,b)"
+        , "}"
+        ]
+        [ Function "main" [] TVoid $
+            mkSeq [ mkAssign "a" (mkIntLit 7)
+                  , mkAssign "b" (mkIntLit 5)
+                  , mkEcho [ ExprArg (mkVar "a")
+                           , ExprArg (mkVar "b")
+                           ]
+                  ]
+        ]
+    , assertParse
+        [ ""
+        , ""
+        , ""
+        , "/*a = 5*/"
+        , "/*"
+        , "def main() {}"
+        , "*/"
+        , "def main() {"
+        , "a = 5"
+        , "}"
+        ]
+        [ Function "main" [] TVoid $
+            mkAssign "a" (mkIntLit 5)
+        ]
     , assertParseFail
         [ "def main() {"
         , "123 = a"
@@ -129,6 +196,29 @@ tests = mkTestLabel "parser tests"
     , assertParseFail
         [ "def main() {"
         , "a = break"
+        , "}"
+        ]
+    , assertParseFail
+        [ "def main() {"
+        , "if 5 < 6 {"
+        , "a = 5"
+        , "} else {"
+        , "}"
+        , "}"
+        ]
+    , assertParseFail
+        [ "def main() {"
+        , "if 5 < 6 {"
+        , "} else {"
+        , "a = 5"
+        , "}"
+        , "}"
+        ]
+    , assertParseFail
+        [ "def main() {"
+        , "if 5 < 6 {"
+        , "} else {"
+        , "}"
         , "}"
         ]
     ]
