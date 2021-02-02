@@ -34,6 +34,7 @@ library
     , Harakiri.Expr.Interpreter
     , Harakiri.IR.Types
     , Harakiri.IR.Translate
+    , Harakiri.IR.Interpreter
     , Harakiri.Utils
   hs-source-dirs:
       src
@@ -50,6 +51,7 @@ library
     , unordered-containers >= 0.2 && < 1
     , containers >= 0.6 && < 1
     , mtl >= 2.2 && < 3
+    , array >= 0.5 && < 1
   default-language: Haskell2010
 
 executable harakiri
