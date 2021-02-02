@@ -34,7 +34,6 @@ pFunction :: Parser (Function Text PosExpr)
 pFunction =   Function
           <$> (space *> reserved "def" *> pId)
           <*> parens (sepBy pId (symbol ","))
-          <*> return TVoid
           <*> braces pSeq
 
 pExpr :: Parser PosExpr

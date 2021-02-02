@@ -18,7 +18,7 @@ tests = mkTestLabel "parser tests"
         , "echo(\"a: \", a, \"b: \", b)"
         , "}"
         ]
-        [ Function "main" [] TVoid $ mkSeq
+        [ Function "main" [] $ mkSeq
             [ mkAssign "a" mkInput
             , mkAssign "b" mkInput
             , mkEcho [ StrArg "a: "
@@ -45,12 +45,12 @@ tests = mkTestLabel "parser tests"
         , "echo(a + b * b)"
         , "}"
         ]
-        [ Function "print_interval" ["from", "to"] TVoid $
+        [ Function "print_interval" ["from", "to"] $
             mkWhile (mkVar "from" $< mkVar "to") $
                 mkSeq [ mkEcho [ExprArg (mkVar "from")]
                       , mkAssign "from" (mkVar "from" $+ mkIntLit 1)
                       ]
-        , Function "main" [] TVoid $
+        , Function "main" [] $
             mkSeq [ mkEcho [StrArg "enter a"]
                   , mkAssign "a" mkInput
                   , mkEcho [StrArg "enter b"]
@@ -74,7 +74,7 @@ tests = mkTestLabel "parser tests"
         , "echo(a)"
         , "}"
         ]
-        [ Function "main" [] TVoid $
+        [ Function "main" [] $
             mkSeq [ mkAssign "a" (mkIntLit 1)
                   , mkAssign "a" (mkNeg (mkVar "a") $+ mkIntLit 8)
                   , mkIf [ (mkVar "a" $== mkIntLit 8) $|| (mkVar "a" $== mkIntLit 9)
@@ -96,7 +96,7 @@ tests = mkTestLabel "parser tests"
         , "}"
         , "}"
         ]
-        [ Function "main" [] TVoid $
+        [ Function "main" [] $
             mkWhile (mkIntLit 1) $
                 mkSeq [ mkAssign "a" mkInput
                       , mkIf [ mkVar "a" $== mkIntLit 1
@@ -110,7 +110,7 @@ tests = mkTestLabel "parser tests"
         , "echo(\"a = \", a, \"\\n\")"
         , "}"
         ]
-        [ Function "main" [] TVoid $
+        [ Function "main" [] $
             mkSeq [ mkAssign "a" (mkIntLit 5)
                   , mkEcho [ StrArg "a = "
                            , ExprArg (mkVar "a")
@@ -123,7 +123,7 @@ tests = mkTestLabel "parser tests"
         , "echo(5, \"\\n\\n\\n\")"
         , "}"
         ]
-        [ Function "main" [] TVoid $
+        [ Function "main" [] $
             mkEcho [ ExprArg (mkIntLit 5)
                    , StrArg "\n\n\n"
                    ]
@@ -135,7 +135,7 @@ tests = mkTestLabel "parser tests"
         , "echo(5)"
         , "}"
         ]
-        [ Function "main" [] TVoid $
+        [ Function "main" [] $
             mkEcho [ ExprArg (mkIntLit 5) ]
         ]
     , assertParse
@@ -148,7 +148,7 @@ tests = mkTestLabel "parser tests"
         , "echo(a,b)"
         , "}"
         ]
-        [ Function "main" [] TVoid $
+        [ Function "main" [] $
             mkSeq [ mkAssign "a" (mkIntLit 7)
                   , mkAssign "b" (mkIntLit 5)
                   , mkEcho [ ExprArg (mkVar "a")
@@ -168,7 +168,7 @@ tests = mkTestLabel "parser tests"
         , "a = 5"
         , "}"
         ]
-        [ Function "main" [] TVoid $
+        [ Function "main" [] $
             mkAssign "a" (mkIntLit 5)
         ]
     , assertParseFail

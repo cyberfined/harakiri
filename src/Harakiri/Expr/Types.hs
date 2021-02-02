@@ -25,17 +25,13 @@ import Prelude hiding (null, seq)
 data Function a e = Function
     { funName :: Text
     , funArgs :: [a]
-    , funType :: Type
     , funBody :: e
     } deriving (Eq, Functor, Foldable, Traversable)
 
 showFunction :: Function Text Expr -> Text
 showFunction fn =  "def " <> funName fn
-                <> "(" <> intercalate "," (funArgs fn) <> ")" <> textType
+                <> "(" <> intercalate "," (funArgs fn) <> ")"
                 <> " {\n" <> showExpr (funBody fn) <> "\n}"
-  where textType
-          | funType fn == TVoid = ""
-          | otherwise           = " : " <> showType (funType fn)
 
 type Expr = Fix ExprF
 
