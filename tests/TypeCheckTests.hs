@@ -159,9 +159,9 @@ assertTypeCheck lines = case parseFromText "<string>" (SourceCode src) of
     Left parseErr -> assertFailure $
         "Unexpected error parsing `" ++ unpack src ++ "`:\n" ++ unpack parseErr
     Right funcs -> case typeCheck (SourceCode src) funcs of
-        Just checkErr -> assertFailure $
+        Left checkErr -> assertFailure $
             "Unexpected error type checking `" ++ unpack src ++ "`:\n" ++ unpack checkErr
-        Nothing -> return ()
+        Right{} -> return ()
   where src = unlines lines
 
 assertTypeCheckFail :: [Text] -> Assertion
@@ -169,7 +169,7 @@ assertTypeCheckFail lines = case parseFromText "<string>" (SourceCode src) of
     Left err -> assertFailure $
         "Unexpected error parsing `" ++ unpack src ++ "`:\n" ++ unpack err
     Right funcs -> case typeCheck (SourceCode src) funcs of
-        Nothing -> assertFailure $
+        Right{} -> assertFailure $
             "Unexpected success type checking `" ++ unpack src ++ "`:\n"
-        Just{} -> return ()
+        Left{} -> return ()
   where src = unlines lines

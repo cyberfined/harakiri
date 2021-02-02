@@ -12,6 +12,7 @@ module Harakiri.Expr.Types
     , Type(..)
 
     , showFunction
+    , showFunctionType
     , showExpr
     , showBinop
     , showType
@@ -25,13 +26,20 @@ import Prelude hiding (null, seq)
 data Function a e = Function
     { funName :: Text
     , funArgs :: [a]
+    , funType :: Type
     , funBody :: e
     } deriving (Eq, Functor, Foldable, Traversable)
 
 showFunction :: Function Text Expr -> Text
 showFunction fn =  "def " <> funName fn
                 <> "(" <> intercalate "," (funArgs fn) <> ")"
+                <> showFunctionType (funType fn)
                 <> " {\n" <> showExpr (funBody fn) <> "\n}"
+
+showFunctionType :: Type -> Text
+showFunctionType = \case
+    TVoid -> ""
+    typ   -> ": " <> showType typ
 
 type Expr = Fix ExprF
 

@@ -53,19 +53,17 @@ type TypeCheckM m = ( MonadReader CheckContext m
                     , MonadError Text m
                     )
 
-typeCheck :: SourceCode -> [Function Text PosExpr] -> Maybe Text
-typeCheck src funcs =
-    case runExcept (runReaderT (evalStateT checkAll initState) initCtx) of
-        Left err -> Just err
-        Right{}  -> Nothing
+typeCheck :: SourceCode -> [Function Text PosExpr] -> Either Text [Function Text PosExpr]
+typeCheck src funcs = runExcept (runReaderT (evalStateT checkAll initState) initCtx)
   where checkAll = do
-            mapM_ checkFunction funcs
+            typedFuncs <- mapM checkFunction funcs
             env <- gets funEnv
             case HashMap.lookup "main" env of
                 Nothing -> prettyError "function main is undefined"
                 Just fInfo ->
                     when (numArgs fInfo /= 0) $
                         prettyError "main function must take 0 arguments"
+            return typedFuncs
         checkFunction func = do
             let fName = funName func
                 fInfo = FuncInfo { numArgs    = length $ funArgs func
@@ -78,6 +76,8 @@ typeCheck src funcs =
             retInNonVoid <- gets returnInNonVoid
             unless retInNonVoid $
                 prettyError $ "function " <> fName <> " must return a value"
+            retType <- gets (returnType . curFinfo) >>= return . fromMaybe TVoid
+            return func { funType = retType }
         initState = CheckState { funEnv          = HashMap.empty
                                , definedVars     = HashSet.empty
                                , curFinfo        = FuncInfo 0 Nothing
