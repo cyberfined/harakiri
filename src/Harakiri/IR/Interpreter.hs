@@ -4,6 +4,8 @@
 
 module Harakiri.IR.Interpreter (interpret) where
 
+import Debug.Trace
+
 import Control.Monad.Reader
 import Data.Array.IO
 import Data.Foldable (toList)
@@ -214,8 +216,10 @@ callFunction fun args = do
               let newVars = foldl ins vars (zip args $ infArgs fInfo)
                   ins as (v,T a) = IntMap.insert a v as
               liftIO $ writeIORef varsRef newVars
+              liftIO $ writeIORef pcRef 0
               res <- infBody fInfo
               liftIO $ writeIORef pcRef pcBak
+              liftIO $ writeIORef varsRef vars
               return res
           where expectedNumArgs = length (infArgs fInfo)
                 actualNumArgs = length args
