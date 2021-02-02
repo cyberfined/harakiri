@@ -1,12 +1,16 @@
 {-# LANGUAGE ConstraintKinds  #-}
 {-# LANGUAGE FlexibleContexts #-}
 
-module Harakiri.IR.Translate (functionToIR) where
+module Harakiri.IR.Translate
+    ( TransResult(..)
+    , translateToIR
+    ) where
 
 import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.State
 import Data.Fix (foldFix)
+import Data.IntMap (IntMap)
 import Data.HashMap.Strict (HashMap)
 import Data.Maybe (fromMaybe)
 import Data.Sequence (Seq, ViewR(..), viewr, (|>), (><))
@@ -16,6 +20,7 @@ import Prelude hiding (seq)
 import Harakiri.Expr (Function, Expr, ExprF)
 import Harakiri.IR.Types
 
+import qualified Data.IntMap as IntMap
 import qualified Data.HashMap.Strict as HashMap
 import qualified Data.Sequence as Seq
 
@@ -26,11 +31,16 @@ type TransM m = ( MonadReader TransContext m
                 , MonadError Text m
                 )
 
+data TransResult = TransResult
+    { strings   :: !(IntMap Text)
+    , functions :: ![Function Temp (Seq IR)]
+    }
+
 data TransState = TransState
     { nextTemp     :: !Temp
     , nextLabel    :: !Label
     , nextStringId :: !Int
-    , strings      :: !(HashMap Text Int)
+    , stringMap    :: !(HashMap Text Int)
     , variables    :: !(HashMap Text Temp)
     , code         :: !(Seq IR)
     , dstTemp      :: !(Maybe Temp)
@@ -44,17 +54,34 @@ data TransContext = TransContext
     , binopToRelop :: !Bool
     }
 
-functionToIR :: Function Expr -> Either Text (Function (Seq IR))
-functionToIR func = case runExcept (runReaderT (execStateT run initState) initCtx) of
-    Left err       -> Left err
-    Right endState -> Right (func { Expr.funBody = code endState })
-  where run = do
-            mapM_ newVarTemp (Expr.funArgs func)
-            void $ foldFix transExprF (Expr.funBody func)
+translateToIR :: [Function Text Expr] -> Either Text TransResult
+translateToIR funcs =
+    case runExcept (runReaderT (runStateT (mapM run funcs) initState) initCtx) of
+        Left err -> Left err
+        Right (transFuncs, st) ->
+            Right $ TransResult { functions = transFuncs
+                                , strings   = convertStrings $ stringMap st
+                                }
+  where convertStrings =
+            HashMap.foldlWithKey' (\acc str ind -> IntMap.insert ind str acc) IntMap.empty
+        run func = do
+            local (const initCtx) $ do
+                resetState
+                args <- mapM newVarTemp (Expr.funArgs func)
+                void $ foldFix transExprF (Expr.funBody func)
+                body <- gets code
+                let transFunc = func { Expr.funArgs = args
+                                     , Expr.funBody = body
+                                     }
+                return transFunc
+        resetState = modify $ \st -> st { variables = HashMap.empty
+                                        , code      = Seq.empty
+                                        , dstTemp   = Nothing
+                                        }
         initState = TransState { nextTemp     = T 0
                                , nextLabel    = L 0
                                , nextStringId = 0
-                               , strings      = HashMap.empty
+                               , stringMap    = HashMap.empty
                                , variables    = HashMap.empty
                                , code         = Seq.empty
                                , dstTemp      = Nothing
@@ -326,13 +353,13 @@ newLabel = do
 
 getStringId :: TransM m => Text -> m Int
 getStringId str = do
-    strIds <- gets strings
+    strIds <- gets stringMap
     case HashMap.lookup str strIds of
         Nothing -> do
             nextId <- gets nextStringId
             let newStrIds = HashMap.insert str nextId strIds
             modify $ \st -> st { nextStringId = nextId + 1
-                               , strings      = newStrIds
+                               , stringMap    = newStrIds
                                }
             return nextId
         Just strId -> return strId
