@@ -4,8 +4,6 @@
 
 module Harakiri.IR.Interpreter (interpret) where
 
-import Debug.Trace
-
 import Control.Monad.Reader
 import Data.Array.IO
 import Data.Foldable (toList)
