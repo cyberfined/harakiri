@@ -22,14 +22,14 @@ import Data.Functor.Classes (Eq1(..))
 import Data.Text (Text, pack, null, intercalate)
 import Prelude hiding (null, seq)
 
-data Function e = Function
+data Function a e = Function
     { funName :: Text
-    , funArgs :: [Text]
+    , funArgs :: [a]
     , funType :: Type
     , funBody :: e
     } deriving (Eq, Functor, Foldable, Traversable)
 
-showFunction :: Function Expr -> Text
+showFunction :: Function Text Expr -> Text
 showFunction fn =  "def " <> funName fn
                 <> "(" <> intercalate "," (funArgs fn) <> ")" <> textType
                 <> " {\n" <> showExpr (funBody fn) <> "\n}"
@@ -133,7 +133,7 @@ showLeaf s = PrefixFunc (\pr _ -> pr <> s <> "\n")
 
 showEchoArg :: EchoArg PrefixFunc -> PrefixFunc
 showEchoArg = \case
-    StrArg  s -> showLeaf ("\"" <> s <> "\"")
+    StrArg  s -> showLeaf (showText s)
     ExprArg e -> e
 
 showText :: Show a => a -> Text

@@ -53,7 +53,7 @@ type TypeCheckM m = ( MonadReader CheckContext m
                     , MonadError Text m
                     )
 
-typeCheck :: SourceCode -> [Function PosExpr] -> Maybe Text
+typeCheck :: SourceCode -> [Function Text PosExpr] -> Maybe Text
 typeCheck src funcs =
     case runExcept (runReaderT (evalStateT checkAll initState) initCtx) of
         Left err -> Just err

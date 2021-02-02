@@ -68,7 +68,7 @@ data FuncInfo m = FuncInfo
     , infBody :: !(m (Maybe Int))
     }
 
-interpret :: SourceCode -> [Function PosExpr] -> IO ()
+interpret :: SourceCode -> [Function Text PosExpr] -> IO ()
 interpret src funcs = do
     vars <- newIORef HashMap.empty
     brk <- newIORef False

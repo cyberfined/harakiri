@@ -223,7 +223,7 @@ tests = mkTestLabel "parser tests"
         ]
     ]
 
-assertParse :: [Text] -> [Function Expr] -> Assertion
+assertParse :: [Text] -> [Function Text Expr] -> Assertion
 assertParse lines expected = case parseFromText "<string>" (SourceCode src) of
     Left err ->
         assertFailure $ "Unexpected error parsing `" ++ unpack src ++ "`:\n" ++ unpack err

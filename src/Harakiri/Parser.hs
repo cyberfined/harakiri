@@ -22,15 +22,15 @@ import qualified Harakiri.Expr as Expr
 
 type Parser = Parsec Void Text
 
-parseFromText :: String -> SourceCode -> Either Text [Function PosExpr]
+parseFromText :: String -> SourceCode -> Either Text [Function Text PosExpr]
 parseFromText fpath src = case parse pRootExpr fpath (getSourceCode src) of
     Left err  -> Left $ pack $ errorBundlePretty err
     Right res -> Right res
 
-pRootExpr :: Parser [Function PosExpr]
+pRootExpr :: Parser [Function Text PosExpr]
 pRootExpr = (:) <$> pFunction <*> many pFunction <* eof
 
-pFunction :: Parser (Function PosExpr)
+pFunction :: Parser (Function Text PosExpr)
 pFunction =   Function
           <$> (space *> reserved "def" *> pId)
           <*> parens (sepBy pId (symbol ","))

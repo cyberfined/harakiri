@@ -4,13 +4,13 @@ module Common
     ) where
 
 import Test.HUnit
-import Data.Text (unpack, unlines)
+import Data.Text (Text, unpack, unlines)
 import Prelude hiding (unlines)
 
 import Harakiri.Expr
 
 newtype ShowFunctions = ShowFunctions
-    { runShowFunctions :: [Function Expr]
+    { runShowFunctions :: [Function Text Expr]
     } deriving Eq
 
 instance Show ShowFunctions where
