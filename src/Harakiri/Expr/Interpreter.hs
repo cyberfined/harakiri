@@ -193,11 +193,6 @@ interpretExprF = shouldSkip . \case
                then return Nothing
                else ma
 
-        while :: Monad m => m Bool -> m () -> m ()
-        while mcond mbody = do
-            cond <- mcond
-            when cond (mbody >> while mcond mbody)
-
 setContext :: InterpretM m => (PosExpr -> m (Maybe Int)) -> PosExpr -> m (Maybe Int)
 setContext f expr =
     local (\ctx -> ctx { curPos = annotation $ getCompose $ unFix expr }) (f expr)

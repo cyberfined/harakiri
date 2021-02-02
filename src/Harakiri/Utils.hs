@@ -8,6 +8,7 @@ module Harakiri.Utils
     , adi
     , showText
     , prettyError
+    , while
     ) where
 
 import Control.Monad.Except
@@ -48,3 +49,8 @@ prettyError err = do
         prettyLine =  margin <> "|\n " <> strLn <> " | " <> line <> "\n"
                    <> margin <> "|\n"
     throwError (errMsg <> prettyLine)
+
+while :: Monad m => m Bool -> m () -> m ()
+while mcond mbody = do
+    cond <- mcond
+    when cond (mbody >> while mcond mbody)
