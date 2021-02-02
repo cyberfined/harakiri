@@ -6,6 +6,7 @@ module Harakiri.IR.Types
     , EchoOperand(..)
     , Binop(..)
     , Relop(..)
+    , showFunction
     , showIR
     , showOperand
     , showEchoOperand
@@ -15,7 +16,17 @@ module Harakiri.IR.Types
     , showRelop
     ) where
 
+import Data.Sequence (Seq)
 import Data.Text (Text, pack, intercalate)
+
+import Harakiri.Expr.Types (Function(..), showFunctionType)
+
+showFunction :: Function Temp (Seq IR) -> Text
+showFunction fn =  "def " <> funName fn
+                <> "(" <> textArgs <> ")" <> showFunctionType (funType fn)
+                <> " {\n" <> textBody <> "\n}"
+  where textArgs = intercalate "," $ map showTemp $ funArgs fn
+        textBody = foldl (\str ir -> str <> showIR ir <> "\n") "" (funBody fn)
 
 data IR
     = Neg !Temp !Operand
