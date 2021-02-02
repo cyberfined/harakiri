@@ -17,8 +17,9 @@ import Data.Sequence (Seq, ViewR(..), viewr, (|>), (><))
 import Data.Text (Text)
 import Prelude hiding (seq)
 
-import Harakiri.Expr (Function, Expr, ExprF)
+import Harakiri.Expr (Function, ExprF, stripAnnotation)
 import Harakiri.IR.Types
+import Harakiri.TypeCheck (TypedFunctions, getTypedFunctions)
 
 import qualified Data.IntMap as IntMap
 import qualified Data.HashMap.Strict as HashMap
@@ -54,15 +55,16 @@ data TransContext = TransContext
     , binopToRelop :: !Bool
     }
 
-translateToIR :: [Function Text Expr] -> Either Text TransResult
-translateToIR funcs =
-    case runExcept (runReaderT (runStateT (mapM run funcs) initState) initCtx) of
+translateToIR :: TypedFunctions -> Either Text TransResult
+translateToIR typedFuncs =
+    case runExcept (runReaderT (runStateT (mapM run stripedFuncs) initState) initCtx) of
         Left err -> Left err
         Right (transFuncs, st) ->
             Right $ TransResult { functions = transFuncs
                                 , strings   = convertStrings $ stringMap st
                                 }
-  where convertStrings =
+  where stripedFuncs = map (fmap stripAnnotation) $ getTypedFunctions typedFuncs
+        convertStrings =
             HashMap.foldlWithKey' (\acc str ind -> IntMap.insert ind str acc) IntMap.empty
         run func = do
             local (const initCtx) $ do

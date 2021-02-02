@@ -2,7 +2,11 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ConstraintKinds       #-}
 
-module Harakiri.TypeCheck (typeCheck) where
+module Harakiri.TypeCheck
+    ( TypedFunctions
+    , getTypedFunctions
+    , typeCheck
+    ) where
 
 import Control.Monad.Except
 import Control.Monad.Reader
@@ -21,6 +25,11 @@ import Harakiri.Utils
 
 import qualified Data.HashMap.Strict as HashMap
 import qualified Data.HashSet as HashSet
+
+newtype TypedFunctions = TypedFunctions [Function Text PosExpr]
+
+getTypedFunctions :: TypedFunctions -> [Function Text PosExpr]
+getTypedFunctions (TypedFunctions funcs) = funcs
 
 data FuncInfo = FuncInfo
     { numArgs    :: !Int
@@ -53,8 +62,9 @@ type TypeCheckM m = ( MonadReader CheckContext m
                     , MonadError Text m
                     )
 
-typeCheck :: SourceCode -> [Function Text PosExpr] -> Either Text [Function Text PosExpr]
-typeCheck src funcs = runExcept (runReaderT (evalStateT checkAll initState) initCtx)
+typeCheck :: SourceCode -> [Function Text PosExpr] -> Either Text TypedFunctions
+typeCheck src funcs = TypedFunctions <$>
+    runExcept (runReaderT (evalStateT checkAll initState) initCtx)
   where checkAll = do
             typedFuncs <- mapM checkFunction funcs
             env <- gets funEnv
