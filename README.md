@@ -69,6 +69,6 @@ def main() {
 
 - [x] Parser
 - [x] Type checker
-- [ ] IR generation
+- [x] IR generation
 - [ ] Assembly language code generation
 - [ ] IR optimizations

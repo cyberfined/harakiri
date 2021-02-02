@@ -65,12 +65,14 @@ executable harakiri
     , harakiri
   default-language: Haskell2010
 
-test-suite higer-test
+test-suite harakiri-test
   type: exitcode-stdio-1.0
   main-is: Main.hs
   other-modules:
       ParserTests
     , TypeCheckTests
+    , IRTranslateTests
+    , InterpreterTests
     , Common
   hs-source-dirs:
       tests
@@ -81,5 +83,7 @@ test-suite higer-test
       base >= 4.7 && < 5
     , HUnit >= 1.6 && < 2
     , text >= 1.2 && < 2
+    , directory >= 1.3 && < 2
+    , filepath >= 1.4 && < 2
     , harakiri
   default-language: Haskell2010

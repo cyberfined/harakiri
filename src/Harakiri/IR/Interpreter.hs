@@ -122,10 +122,13 @@ interpretIR = \case
         case signed decimal line of
             Left{}      -> throwError "trying to input non-integer value"
             Right (i,_) -> setTemp dst i
-    Call dst fun margs -> do
+    CallFunc dst fun margs -> do
         args <- mapM readOperand margs
         mret <- callFunction fun args
         maybe (throwError "trying to assign non-integer value") (setTemp dst) mret
+    CallProc fun margs -> do
+        args <- mapM readOperand margs
+        void $ callFunction fun args
     Echo eop -> case eop of
         EchoTemp t   -> readTemp t >>= liftIO . putStr . show
         EchoConst i  -> liftIO $ putStr $ show i

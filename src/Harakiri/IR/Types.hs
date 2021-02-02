@@ -33,7 +33,8 @@ data IR
     | Binop !Binop !Temp !Operand !Operand
     | Move !Temp !Operand
     | Input !Temp
-    | Call !Temp !Text ![Operand]
+    | CallFunc !Temp !Text ![Operand]
+    | CallProc !Text ![Operand]
     | Echo !EchoOperand
     | Load !Temp !Operand
     | Save !Operand !Operand
@@ -50,7 +51,9 @@ showIR = \case
                            <> ", " <> showOperand src2
     Move dst src -> "move " <> showTemp dst <> ", " <> showOperand src
     Input dst    -> "input " <> showTemp dst
-    Call dst fn args -> "call " <> showTemp dst <> ", " <> fn
+    CallFunc dst fn args -> "call " <> showTemp dst <> ", " <> fn
+                     <> "(" <> intercalate ", " (map showOperand args) <> ")"
+    CallProc fn args -> "call " <> fn
                      <> "(" <> intercalate ", " (map showOperand args) <> ")"
     Echo src     -> "echo " <> showEchoOperand src
     Load dst src -> "load " <> showTemp dst <> ", " <> showOperand src

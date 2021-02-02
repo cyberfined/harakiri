@@ -17,7 +17,7 @@ import Data.Sequence (Seq, ViewR(..), viewr, (|>), (><))
 import Data.Text (Text)
 import Prelude hiding (seq)
 
-import Harakiri.Expr (Function, ExprF, stripAnnotation)
+import Harakiri.Expr (Function(..), ExprF, stripAnnotation)
 import Harakiri.IR.Types
 import Harakiri.TypeCheck (TypedFunctions, getTypedFunctions)
 
@@ -48,11 +48,11 @@ data TransState = TransState
     }
 
 data TransContext = TransContext
-    { endLabel     :: !(Maybe Label)
-    , trueLabel    :: !(Maybe Label)
-    , falseLabel   :: !(Maybe Label)
-    , condValue    :: !Bool
-    , binopToRelop :: !Bool
+    { endLabel      :: !(Maybe Label)
+    , trueLabel     :: !(Maybe Label)
+    , falseLabel    :: !(Maybe Label)
+    , condValue     :: !Bool
+    , binopToRelop  :: !Bool
     }
 
 translateToIR :: TypedFunctions -> Either Text TransResult
@@ -69,11 +69,11 @@ translateToIR typedFuncs =
         run func = do
             local (const initCtx) $ do
                 resetState
-                args <- mapM newVarTemp (Expr.funArgs func)
-                void $ foldFix transExprF (Expr.funBody func)
+                args <- mapM newVarTemp (funArgs func)
+                void $ foldFix transExprF (funBody func)
                 body <- gets code
-                let transFunc = func { Expr.funArgs = args
-                                     , Expr.funBody = body
+                let transFunc = func { funArgs = args
+                                     , funBody = body
                                      }
                 return transFunc
         resetState = modify $ \st -> st { variables = HashMap.empty
@@ -88,11 +88,11 @@ translateToIR typedFuncs =
                                , code         = Seq.empty
                                , dstTemp      = Nothing
                                }
-        initCtx = TransContext { endLabel     = Nothing
-                               , trueLabel    = Nothing
-                               , falseLabel   = Nothing
-                               , condValue    = False
-                               , binopToRelop = False
+        initCtx = TransContext { endLabel      = Nothing
+                               , trueLabel     = Nothing
+                               , falseLabel    = Nothing
+                               , condValue     = False
+                               , binopToRelop  = False
                                }
 
 transExprF :: TransM m => ExprF (m (Maybe Operand)) -> m (Maybe Operand)
@@ -179,10 +179,18 @@ transExprF = \case
                        void mop2
                        return Nothing
     Expr.Call fn margs -> do
-        dst <- getDstTemp
-        args <- traverse (withCondValue True . getOperand) margs
-        emitIR (Call dst fn args)
-        returnOperand (Temp dst)
+        needValue <- asks condValue
+        binToRel <- asks binopToRelop
+        if needValue || binToRel
+           then operandToRelop $ do
+               dst <- getDstTemp
+               args <- traverse (withCondValue True . getOperand) margs
+               emitIR (CallFunc dst fn args)
+               returnOperand (Temp dst)
+           else do
+               args <- traverse (withCondValue True . getOperand) margs
+               emitIR (CallProc fn args)
+               return Nothing
     Expr.Echo echoargs -> do
         operands <- forM echoargs $ \case
             Expr.StrArg str  -> EchoString <$> getStringId str
@@ -193,7 +201,7 @@ transExprF = \case
                     Temp t  -> return (EchoTemp t)
         mapM_ (emitIR . Echo) operands
         return Nothing
-    Expr.Input -> do
+    Expr.Input -> operandToRelop $ do
         dst <- getDstTemp
         emitIR (Input dst)
         returnOperand (Temp dst)
