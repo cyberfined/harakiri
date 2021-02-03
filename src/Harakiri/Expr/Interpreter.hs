@@ -110,8 +110,12 @@ interpretExprF = shouldSkip . \case
     Binop mval1 op mval2 -> do
         let msg = "non-integer value in binary opeartion " <> showBinop op
         val1 <- mval1 >>= maybe (prettyError msg) return
-        val2 <- mval2 >>= maybe (prettyError msg) return
-        return (Just $ binopToFunc op val1 val2)
+        case op of
+            And | val1 == 0 -> return (Just 0)
+            Or  | val1 /= 0 -> return (Just 1)
+            _ -> do
+                val2 <- mval2 >>= maybe (prettyError msg) return
+                return (Just $ binopToFunc op val1 val2)
     Call fun args -> do
         let msg = "non-integer value in function argument"
         margs <- sequence <$> sequence args
