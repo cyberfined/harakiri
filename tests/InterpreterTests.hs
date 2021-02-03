@@ -25,6 +25,9 @@ tests name action = mkTestLabel name
     , mkAssertion "tests/cases/case03.hk" "tests/outputs/case03"
     , mkAssertion "tests/cases/case04.hk" "tests/outputs/case04"
     , mkAssertion "tests/cases/case05.hk" "tests/outputs/case05"
+    , mkAssertion "tests/cases/case06.hk" "tests/outputs/case06"
+    , mkAssertion "tests/cases/case07.hk" "tests/outputs/case07"
+    , mkAssertion "tests/cases/case08.hk" "tests/outputs/case08"
     ]
   where mkAssertion caseFile outputFile = do
             test <- readTestCase caseFile outputFile
