@@ -10,6 +10,7 @@ import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.State
 import Data.Fix (foldFix)
+import Data.Foldable (toList)
 import Data.IntMap (IntMap)
 import Data.HashMap.Strict (HashMap)
 import Data.Maybe (fromMaybe)
@@ -34,7 +35,7 @@ type TransM m = ( MonadReader TransContext m
 
 data TransResult = TransResult
     { strings   :: !(IntMap Text)
-    , functions :: ![Function Temp (Seq IR)]
+    , functions :: ![Function Temp [IR]]
     }
 
 data TransState = TransState
@@ -60,7 +61,7 @@ translateToIR typedFuncs =
     case runExcept (runReaderT (runStateT (mapM run stripedFuncs) initState) initCtx) of
         Left err -> Left err
         Right (transFuncs, st) ->
-            Right $ TransResult { functions = transFuncs
+            Right $ TransResult { functions = map (fmap toList) transFuncs
                                 , strings   = convertStrings $ stringMap st
                                 }
   where stripedFuncs = map (fmap stripAnnotation) $ getTypedFunctions typedFuncs

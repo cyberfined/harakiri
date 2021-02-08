@@ -16,12 +16,11 @@ module Harakiri.IR.Types
     , showRelop
     ) where
 
-import Data.Sequence (Seq)
 import Data.Text (Text, pack, intercalate)
 
 import Harakiri.Expr.Types (Function(..), showFunctionType)
 
-showFunction :: Function Temp (Seq IR) -> Text
+showFunction :: Function Temp [IR] -> Text
 showFunction fn =  "def " <> funName fn
                 <> "(" <> textArgs <> ")" <> showFunctionType (funType fn)
                 <> " {\n" <> textBody <> "\n}"
@@ -62,7 +61,7 @@ showIR = \case
     Branch lbl   -> "goto " <> showLabel lbl
     BranchIf op src1 src2 lbl -> "if " <> showOperand src1 <> " " <> showRelop op <> " "
                               <> showOperand src2 <> " goto " <> showLabel lbl
-    Return msrc      -> "ret" <> maybe "" (\src -> " " <> showOperand src) msrc
+    Return msrc -> "ret" <> maybe "" (\src -> " " <> showOperand src) msrc
 
 data Operand
     = Temp !Temp

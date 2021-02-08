@@ -6,7 +6,6 @@ module Harakiri.IR.Interpreter (interpret) where
 
 import Control.Monad.Reader
 import Data.Array.IO
-import Data.Foldable (toList)
 import Data.HashMap.Strict (HashMap)
 import Data.IntMap (IntMap)
 import Data.IORef
@@ -21,7 +20,6 @@ import Harakiri.Utils (while, showText)
 
 import qualified Data.HashMap.Strict as HashMap
 import qualified Data.IntMap as IntMap
-import qualified Data.Sequence as Seq
 import qualified Data.Text.IO as TIO
 
 import qualified Harakiri.IR.Translate as Trans
@@ -68,11 +66,10 @@ interpret Trans.TransResult { Trans.functions = funcs, Trans.strings = strs } = 
   where callMain = callFunction "main" []
         collectFunctions fInfoMap labelMap func = do
             let body = funBody func
-                bodyLen = Seq.length body
-                bodyList = toList body
-            bodyArr <- liftIO $ newListArray (0, bodyLen-1) bodyList
+                bodyLen = length body
+            bodyArr <- liftIO $ newListArray (0, bodyLen-1) body
             let fInfoMap' = HashMap.insert (funName func) (fInfo bodyArr) fInfoMap
-                labelMap' = foldl collectLabels labelMap $ zip bodyList [0..]
+                labelMap' = foldl collectLabels labelMap $ zip body [0..]
             return $ (fInfoMap', labelMap')
           where fInfo bodyArr = FuncInfo { infArgs = funArgs func
                                          , infBody = interpretFunction bodyArr
