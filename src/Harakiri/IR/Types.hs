@@ -1,97 +1,133 @@
 module Harakiri.IR.Types
-    ( IR(..)
+    ( ShowReg(..)
+    , IR(..)
     , Temp(..)
     , Label(..)
     , Operand(..)
     , EchoOperand(..)
+    , MoveOperand(..)
     , Binop(..)
     , Relop(..)
     , showFunction
     , showIR
     , showOperand
     , showEchoOperand
+    , showMoveOperand
+    , operandToMove
     , showTemp
     , showLabel
     , showBinop
     , showRelop
     ) where
 
-import Data.Text (Text, pack, intercalate)
+import Data.Text (Text, intercalate)
 
 import Harakiri.Expr.Types (Function(..), showFunctionType)
+import Harakiri.Utils
 
-showFunction :: Function Temp [IR] -> Text
+class ShowReg a where
+    showReg :: a -> Text
+
+showFunction :: ShowReg a => Function a [IR a] -> Text
 showFunction fn =  "def " <> funName fn
                 <> "(" <> textArgs <> ")" <> showFunctionType (funType fn)
                 <> " {\n" <> textBody <> "\n}"
-  where textArgs = intercalate "," $ map showTemp $ funArgs fn
+  where textArgs = intercalate "," $ map showReg $ funArgs fn
         textBody = foldl (\str ir -> str <> showIR ir <> "\n") "" (funBody fn)
 
-data IR
-    = Neg !Temp !Operand
-    | Binop !Binop !Temp !Operand !Operand
-    | Move !Temp !Operand
-    | Input !Temp
-    | CallFunc !Temp !Text ![Operand]
-    | CallProc !Text ![Operand]
-    | Echo !EchoOperand
-    | Load !Temp !Operand
-    | Save !Operand !Operand
+data IR a
+    = Neg !a !(Operand a)
+    | Binop !Binop !a !(Operand a) !(Operand a)
+    | Move !a !(MoveOperand a)
+    | Input !a
+    | CallFunc !a !Text ![Operand a]
+    | CallProc !Text ![Operand a]
+    | Echo !(EchoOperand a)
+    | Load !a !(Operand a)
+    | Save !(MoveOperand a) !(Operand a)
     | Label !Label
     | Branch !Label
-    | BranchIf !Relop !Operand !Operand !Label
-    | Return !(Maybe Operand)
+    | BranchIf !Relop !(Operand a) !(Operand a) !Label
+    | Return !(Maybe (Operand a))
 
-showIR :: IR -> Text
+showIR :: ShowReg a => IR a -> Text
 showIR = \case
-    Neg dst src -> "neg " <> showTemp dst <> ", " <> showOperand src
-    Binop op dst src1 src2 -> showBinop op <> " " <> showTemp dst
+    Neg dst src -> "neg " <> showReg dst <> ", " <> showOperand src
+    Binop op dst src1 src2 -> showBinop op <> " " <> showReg dst
                            <> ", " <> showOperand src1
                            <> ", " <> showOperand src2
-    Move dst src -> "move " <> showTemp dst <> ", " <> showOperand src
-    Input dst    -> "input " <> showTemp dst
-    CallFunc dst fn args -> "call " <> showTemp dst <> ", " <> fn
+    Move dst src -> "move " <> showReg dst <> ", " <> showMoveOperand src
+    Input dst    -> "input " <> showReg dst
+    CallFunc dst fn args -> "call " <> showReg dst <> ", " <> fn
                      <> "(" <> intercalate ", " (map showOperand args) <> ")"
     CallProc fn args -> "call " <> fn
                      <> "(" <> intercalate ", " (map showOperand args) <> ")"
     Echo src     -> "echo " <> showEchoOperand src
-    Load dst src -> "load " <> showTemp dst <> ", " <> showOperand src
-    Save src dst -> "save " <> showOperand src <> ", " <> showOperand dst
+    Load dst src -> "load " <> showReg dst <> ", " <> showOperand src
+    Save src dst -> "save " <> showMoveOperand src <> ", " <> showOperand dst
     Label lbl    -> showLabel lbl <> ":"
     Branch lbl   -> "goto " <> showLabel lbl
     BranchIf op src1 src2 lbl -> "if " <> showOperand src1 <> " " <> showRelop op <> " "
                               <> showOperand src2 <> " goto " <> showLabel lbl
     Return msrc -> "ret" <> maybe "" (\src -> " " <> showOperand src) msrc
 
-data Operand
-    = Temp !Temp
+data Operand a
+    = Temp !a
     | Const !Int
 
-showOperand :: Operand -> Text
+showOperand :: ShowReg a => Operand a -> Text
 showOperand = \case
-    Temp t  -> showTemp t
-    Const c -> pack (show c)
+    Temp t  -> showReg t
+    Const c -> showText c
 
-data EchoOperand
-    = EchoTemp !Temp
+data EchoOperand a
+    = EchoTemp !a
     | EchoConst !Int
     | EchoString !Int
 
-showEchoOperand :: EchoOperand -> Text
+showEchoOperand :: ShowReg a => EchoOperand a -> Text
 showEchoOperand = \case
-    EchoTemp t   -> showTemp t
-    EchoConst c  -> pack (show c)
-    EchoString s -> "str(" <> pack (show s) <> ")"
+    EchoTemp t   -> showReg t
+    EchoConst c  -> showText c
+    EchoString s -> "str(" <> showText s <> ")"
+
+data MoveOperand a
+    = MoveTemp !a
+    | MoveConst !Int
+    | MoveString !StringLabel
+
+showMoveOperand :: ShowReg a => MoveOperand a -> Text
+showMoveOperand = \case
+    MoveTemp t   -> showReg t
+    MoveConst c  -> showText c
+    MoveString s -> showStringLabel s
+
+operandToMove :: Operand a -> MoveOperand a
+operandToMove = \case
+    Const i -> MoveConst i
+    Temp t  -> MoveTemp t
 
 newtype Temp = T Int
 
+instance Enum Temp where
+    toEnum = T
+    fromEnum (T t) = t
+
+instance ShowReg Temp where
+    showReg = showTemp
+
 showTemp :: Temp -> Text
-showTemp (T t) = "t" <> pack (show t)
+showTemp (T t) = "t" <> showText t
 
 newtype Label = L Int deriving Eq
 
 showLabel :: Label -> Text
-showLabel (L l) = "l" <> pack (show l)
+showLabel (L l) = "l" <> showText l
+
+newtype StringLabel = StringLabel Int deriving Eq
+
+showStringLabel :: StringLabel -> Text
+showStringLabel (StringLabel l) = "str" <> showText l
 
 data Binop = Add | Sub | Mul | Div
 

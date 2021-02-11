@@ -35,7 +35,7 @@ type TransM m = ( MonadReader TransContext m
 
 data TransResult = TransResult
     { strings   :: !(IntMap Text)
-    , functions :: ![Function Temp [IR]]
+    , functions :: ![Function Temp [IR Temp]]
     }
 
 data TransState = TransState
@@ -44,7 +44,7 @@ data TransState = TransState
     , nextStringId :: !Int
     , stringMap    :: !(HashMap Text Int)
     , variables    :: !(HashMap Text Temp)
-    , code         :: !(Seq IR)
+    , code         :: !(Seq (IR Temp))
     , dstTemp      :: !(Maybe Temp)
     }
 
@@ -96,14 +96,14 @@ translateToIR typedFuncs =
                                , binopToRelop  = False
                                }
 
-transExprF :: TransM m => ExprF (m (Maybe Operand)) -> m (Maybe Operand)
+transExprF :: TransM m => ExprF (m (Maybe (Operand Temp))) -> m (Maybe (Operand Temp))
 transExprF = \case
     Expr.IntLit i -> do
         mdst <- getDstTempMaybe
         case mdst of
             Nothing  -> operandToRelop $ returnOperand (Const i)
             Just dst -> do
-                emitIR (Move dst (Const i))
+                emitIR (Move dst (MoveConst i))
                 return Nothing
     Expr.Var var -> do
         mdst <- getDstTempMaybe
@@ -111,7 +111,7 @@ transExprF = \case
         case mdst of
             Nothing -> operandToRelop (returnOperand src)
             Just dst -> do
-                emitIR (Move dst src)
+                emitIR (Move dst (operandToMove src))
                 return Nothing
     Expr.Neg mop -> operandToRelop $ do
         dst <- getDstTemp
@@ -143,10 +143,10 @@ transExprF = \case
                        emitIR (Label nextLbl)
                        void $ withTrueFalseLabels trueLbl falseLbl mop2
                        emitIR (Label trueLbl)
-                       emitIR (Move dst (Const 1))
+                       emitIR (Move dst (MoveConst 1))
                        emitIR (Branch exitLbl)
                        emitIR (Label falseLbl)
-                       emitIR (Move dst (Const 0))
+                       emitIR (Move dst (MoveConst 0))
                        emitIR (Label exitLbl)
                        return (Just $ Temp dst)
                    else do
@@ -168,10 +168,10 @@ transExprF = \case
                        emitIR (Label nextLbl)
                        void $ withTrueFalseLabels trueLbl falseLbl mop2
                        emitIR (Label falseLbl)
-                       emitIR (Move dst (Const 0))
+                       emitIR (Move dst (MoveConst 0))
                        emitIR (Branch exitLbl)
                        emitIR (Label trueLbl)
-                       emitIR (Move dst (Const 1))
+                       emitIR (Move dst (MoveConst 1))
                        emitIR (Label exitLbl)
                        return (Just $ Temp dst)
                    else do
@@ -268,7 +268,7 @@ transExprF = \case
         return Nothing
   where returnOperand = return . Just
 
-operandToRelop :: TransM m => m (Maybe Operand) -> m (Maybe Operand)
+operandToRelop :: TransM m => m (Maybe (Operand Temp)) -> m (Maybe (Operand Temp))
 operandToRelop op = do
     binToRel <- asks binopToRelop
     if binToRel
@@ -276,10 +276,10 @@ operandToRelop op = do
        else op
 
 transBinop :: TransM m
-           => m (Maybe Operand)
+           => m (Maybe (Operand Temp))
            -> Binop
-           -> m (Maybe Operand)
-           -> m (Maybe Operand)
+           -> m (Maybe (Operand Temp))
+           -> m (Maybe (Operand Temp))
 transBinop mop1 binop mop2 = operandToRelop $ do
     dst <- getDstTemp
     src1 <- withCondValue True (getOperand mop1)
@@ -288,10 +288,10 @@ transBinop mop1 binop mop2 = operandToRelop $ do
     return (Just $ Temp dst)
 
 transRelop :: TransM m
-           => m (Maybe Operand)
+           => m (Maybe (Operand Temp))
            -> Relop
-           -> m (Maybe Operand)
-           -> m (Maybe Operand)
+           -> m (Maybe (Operand Temp))
+           -> m (Maybe (Operand Temp))
 transRelop mop1 relop mop2 = do
     needValue <- asks condValue
     src1 <- withBinopToRelop False $ getOperand mop1
@@ -305,10 +305,10 @@ transRelop mop1 relop mop2 = do
     res <- if needValue
               then do
                   dst <- getDstTemp
-                  emitIR (Move dst (Const 0))
+                  emitIR (Move dst (MoveConst 0))
                   emitIR (Branch falseLbl)
                   emitIR (Label trueLbl)
-                  emitIR (Move dst (Const 1))
+                  emitIR (Move dst (MoveConst 1))
                   emitIR (Label falseLbl)
                   return (Just $ Temp dst)
               else do
@@ -317,7 +317,7 @@ transRelop mop1 relop mop2 = do
 
     return res
 
-backpatchIfNeed :: TransM m => (Label -> m a) -> m (Seq IR, Label)
+backpatchIfNeed :: TransM m => (Label -> m a) -> m (Seq (IR Temp), Label)
 backpatchIfNeed ma = do
     newLbl <- newLabel
     bakCode <- gets code
@@ -340,10 +340,10 @@ backpatchIfNeed ma = do
                   | otherwise     -> patch restCode repLbl toLbl |> lastInstr
                 _                 -> patch restCode repLbl toLbl |> lastInstr
 
-emitIR :: TransM m => IR -> m ()
+emitIR :: TransM m => IR Temp -> m ()
 emitIR ir = modify (\st -> st { code = code st |> ir })
 
-getOperand :: TransM m => m (Maybe Operand) -> m Operand
+getOperand :: TransM m => m (Maybe (Operand Temp)) -> m (Operand Temp)
 getOperand ma = do
     mop <- ma
     case mop of

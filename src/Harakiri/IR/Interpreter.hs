@@ -87,7 +87,9 @@ interpret Trans.TransResult { Trans.functions = funcs, Trans.strings = strs } = 
                              , isReturn    = isRet
                              }
 
-interpretFunction :: InterpretM m => IOArray Int IR -> m (Maybe Int)
+interpretFunction :: (Enum a, ShowReg a, InterpretM m)
+                  => IOArray Int (IR a)
+                  -> m (Maybe Int)
 interpretFunction body = do
     bounds <- liftIO $ getBounds body
     let bodyLen = snd bounds + 1
@@ -108,12 +110,12 @@ interpretFunction body = do
             pc <- asks progCounter >>= liftIO . readIORef
             return (not isRet && pc < bodyLen)
 
-interpretIR :: InterpretM m => IR -> m ()
+interpretIR :: (Enum a, ShowReg a, InterpretM m) => IR a -> m ()
 interpretIR = \case
     Neg dst src -> negate <$> readOperand src >>= setTemp dst
     Binop op dst src1 src2 ->
         apBinop op <$> readOperand src1 <*> readOperand src2 >>= setTemp dst
-    Move dst src -> readOperand src >>= setTemp dst
+    Move dst src -> readMoveOperand src >>= setTemp dst
     Input dst -> do
         line <- liftIO TIO.getLine
         case signed decimal line of
@@ -134,8 +136,8 @@ interpretIR = \case
             case IntMap.lookup s strs of
                 Nothing  -> throwError $ "wrong string reference " <> showText s
                 Just str -> liftIO $ TIO.putStr $ str
-    Load{}  -> undefined
-    Save{}  -> undefined
+    Load{}  -> throwError "can't interpret load"
+    Save{}  -> throwError "can't interpret save"
     Label{} -> return ()
     Branch lbl -> do
         off <- getLabelOffset lbl
@@ -153,10 +155,10 @@ interpretIR = \case
         ret <- maybe (return Nothing) (fmap Just . readOperand) mret
         liftIO $ writeIORef isRetRef True
         liftIO $ writeIORef retValRef ret
-  where setTemp :: InterpretM m => Temp -> Int -> m ()
-        setTemp (T t) val = do
+  where setTemp :: (Enum a, ShowReg a, InterpretM m) => a -> Int -> m ()
+        setTemp t val = do
             varsRef <- asks variables
-            liftIO $ modifyIORef' varsRef (IntMap.insert t val)
+            liftIO $ modifyIORef' varsRef (IntMap.insert (fromEnum t) val)
 
         getLabelOffset :: InterpretM m => Label -> m Int
         getLabelOffset l@(L lbl) = do
@@ -165,16 +167,22 @@ interpretIR = \case
                 Nothing  -> throwError $ "undefined label " <> showLabel l
                 Just off -> return off
 
-        readOperand :: InterpretM m => Operand -> m Int
+        readOperand :: (Enum a, ShowReg a, InterpretM m) => Operand a -> m Int
         readOperand = \case
             Temp t  -> readTemp t
             Const i -> return i
 
-        readTemp :: InterpretM m => Temp -> m Int
-        readTemp tmp@(T t) = do
+        readMoveOperand :: (Enum a, ShowReg a, InterpretM m) => MoveOperand a -> m Int
+        readMoveOperand = \case
+            MoveTemp t   -> readTemp t
+            MoveConst i  -> return i
+            MoveString{} -> throwError "can't interpret MoveString"
+
+        readTemp :: (Enum a, ShowReg a, InterpretM m) => a -> m Int
+        readTemp tmp = do
             vars <- asks variables >>= liftIO . readIORef
-            case IntMap.lookup t vars of
-                Nothing  -> throwError $ "undefined temp " <> showTemp tmp
+            case IntMap.lookup (fromEnum tmp) vars of
+                Nothing  -> throwError $ "undefined temp " <> showReg tmp
                 Just val -> return val
 
         apBinop :: Binop -> Int -> Int -> Int
