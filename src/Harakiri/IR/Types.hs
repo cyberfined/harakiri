@@ -6,18 +6,24 @@ module Harakiri.IR.Types
     , Operand(..)
     , EchoOperand(..)
     , MoveOperand(..)
+    , StringLabel(..)
     , Binop(..)
     , Relop(..)
     , showFunction
     , showIR
     , showOperand
     , showEchoOperand
+    , echoToMove
     , showMoveOperand
+    , showStringLabel
     , operandToMove
     , showTemp
     , showLabel
     , showBinop
+    , calcBinop
     , showRelop
+    , calcRelop
+    , invRelop
     ) where
 
 import Data.Text (Text, intercalate)
@@ -31,7 +37,7 @@ class ShowReg a where
 showFunction :: ShowReg a => Function a [IR a] -> Text
 showFunction fn =  "def " <> funName fn
                 <> "(" <> textArgs <> ")" <> showFunctionType (funType fn)
-                <> " {\n" <> textBody <> "\n}"
+                <> " {\n" <> textBody <> "}"
   where textArgs = intercalate "," $ map showReg $ funArgs fn
         textBody = foldl (\str ir -> str <> showIR ir <> "\n") "" (funBody fn)
 
@@ -44,7 +50,7 @@ data IR a
     | CallProc !Text ![Operand a]
     | Echo !(EchoOperand a)
     | Load !a !(Operand a)
-    | Save !(MoveOperand a) !(Operand a)
+    | Save !a !(Operand a)
     | Label !Label
     | Branch !Label
     | BranchIf !Relop !(Operand a) !(Operand a) !Label
@@ -63,8 +69,8 @@ showIR = \case
     CallProc fn args -> "call " <> fn
                      <> "(" <> intercalate ", " (map showOperand args) <> ")"
     Echo src     -> "echo " <> showEchoOperand src
-    Load dst src -> "load " <> showReg dst <> ", " <> showOperand src
-    Save src dst -> "save " <> showMoveOperand src <> ", " <> showOperand dst
+    Load dst src -> "load " <> showReg dst <> ", [sp, " <> showOperand src <> "]"
+    Save src dst -> "save " <> showReg src <> ", [sp, " <> showOperand dst <> "]"
     Label lbl    -> showLabel lbl <> ":"
     Branch lbl   -> "goto " <> showLabel lbl
     BranchIf op src1 src2 lbl -> "if " <> showOperand src1 <> " " <> showRelop op <> " "
@@ -90,6 +96,12 @@ showEchoOperand = \case
     EchoTemp t   -> showReg t
     EchoConst c  -> showText c
     EchoString s -> "str(" <> showText s <> ")"
+
+echoToMove :: EchoOperand a -> MoveOperand a
+echoToMove = \case
+    EchoTemp   t -> MoveTemp t
+    EchoConst  c -> MoveConst c
+    EchoString s -> MoveString (StringLabel s)
 
 data MoveOperand a
     = MoveTemp !a
@@ -138,6 +150,13 @@ showBinop = \case
     Mul -> "mul"
     Div -> "div"
 
+calcBinop :: Binop -> Int -> Int -> Int
+calcBinop = \case
+    Add -> (+)
+    Sub -> (-)
+    Mul -> (*)
+    Div -> div
+
 data Relop
     = Lt | Gt | Le | Ge
     | Eq | Ne
@@ -150,3 +169,21 @@ showRelop = \case
     Ge -> "ge"
     Eq -> "eq"
     Ne -> "ne"
+
+calcRelop :: Relop -> Int -> Int -> Bool
+calcRelop = \case
+    Lt -> (<)
+    Gt -> (>)
+    Le -> (<=)
+    Ge -> (>=)
+    Eq -> (==)
+    Ne -> (/=)
+
+invRelop :: Relop -> Relop
+invRelop = \case
+    Lt -> Ge
+    Gt -> Le
+    Le -> Gt
+    Ge -> Lt
+    Eq -> Ne
+    Ne -> Eq
