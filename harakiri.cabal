@@ -27,6 +27,7 @@ library
     , Harakiri.TypeCheck
     , Harakiri.IR
     , Harakiri.SourceCode
+    , Harakiri.Compiler
   other-modules:
       Harakiri.Expr.Types
     , Harakiri.Expr.Annotated
@@ -35,6 +36,8 @@ library
     , Harakiri.IR.Types
     , Harakiri.IR.Translate
     , Harakiri.IR.Interpreter
+    , Harakiri.Compiler.Architecture
+    , Harakiri.Compiler.Compile
     , Harakiri.Compiler.LiveAnalysis
     , Harakiri.Utils
   hs-source-dirs:
