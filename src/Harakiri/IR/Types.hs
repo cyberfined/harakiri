@@ -42,8 +42,8 @@ showFunction fn =  "def " <> funName fn
         textBody = foldl (\str ir -> str <> showIR ir <> "\n") "" (funBody fn)
 
 data IR a
-    = Neg !a !(Operand a)
-    | Binop !Binop !a !(Operand a) !(Operand a)
+    = Neg !a !a
+    | Binop !Binop !a !a !(Operand a)
     | Move !a !(MoveOperand a)
     | Input !a
     | CallFunc !a !Text ![Operand a]
@@ -53,14 +53,14 @@ data IR a
     | Save !a !(Operand a)
     | Label !Label
     | Branch !Label
-    | BranchIf !Relop !(Operand a) !(Operand a) !Label
+    | BranchIf !Relop !a !(Operand a) !Label
     | Return !(Maybe (Operand a))
 
 showIR :: ShowReg a => IR a -> Text
 showIR = \case
-    Neg dst src -> "neg " <> showReg dst <> ", " <> showOperand src
+    Neg dst src -> "neg " <> showReg dst <> ", " <> showReg src
     Binop op dst src1 src2 -> showBinop op <> " " <> showReg dst
-                           <> ", " <> showOperand src1
+                           <> ", " <> showReg src1
                            <> ", " <> showOperand src2
     Move dst src -> "move " <> showReg dst <> ", " <> showMoveOperand src
     Input dst    -> "input " <> showReg dst
@@ -73,7 +73,7 @@ showIR = \case
     Save src dst -> "save " <> showReg src <> ", [sp, " <> showOperand dst <> "]"
     Label lbl    -> showLabel lbl <> ":"
     Branch lbl   -> "goto " <> showLabel lbl
-    BranchIf op src1 src2 lbl -> "if " <> showOperand src1 <> " " <> showRelop op <> " "
+    BranchIf op src1 src2 lbl -> "if " <> showReg src1 <> " " <> showRelop op <> " "
                               <> showOperand src2 <> " goto " <> showLabel lbl
     Return msrc -> "ret" <> maybe "" (\src -> " " <> showOperand src) msrc
 

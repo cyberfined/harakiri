@@ -116,7 +116,9 @@ transExprF = \case
     Expr.Neg mop -> operandToRelop $ do
         dst <- getDstTemp
         src <- withCondValue True (getOperand mop)
-        emitIR (Neg dst src)
+        case src of
+            Const c -> emitIR (Move dst (MoveConst $ -c))
+            Temp t  -> emitIR (Neg dst t)
         return (Just $ Temp dst)
     Expr.Binop mop1 binop mop2 -> case binop of
         Expr.Add -> transBinop mop1 Add mop2
@@ -284,7 +286,17 @@ transBinop mop1 binop mop2 = operandToRelop $ do
     dst <- getDstTemp
     src1 <- withCondValue True (getOperand mop1)
     src2 <- withCondValue True (getOperand mop2)
-    emitIR (Binop binop dst src1 src2)
+    case (src1, src2) of
+        (Const c1, Const c2) -> emitIR (Move dst (MoveConst $ calcBinop binop c1 c2))
+        (Const c, Temp t) -> case binop of
+            Div -> do
+                emitIR (Move dst (MoveConst c))
+                emitIR (Binop Div dst dst src2)
+            Sub -> do
+                emitIR (Binop Sub dst t src1)
+                emitIR (Neg dst dst)
+            _ -> emitIR (Binop binop dst t src1)
+        (Temp t, _) -> emitIR (Binop binop dst t src2)
     return (Just $ Temp dst)
 
 transRelop :: TransM m
@@ -300,22 +312,39 @@ transRelop mop1 relop mop2 = do
     (trueLbl, falseLbl) <- if needValue
                               then (,) <$> newLabel <*> newLabel
                               else (,) <$> getTrueLabel <*> getFalseLabel
-    emitIR (BranchIf relop src1 src2 trueLbl)
 
-    res <- if needValue
-              then do
-                  dst <- getDstTemp
-                  emitIR (Move dst (MoveConst 0))
-                  emitIR (Branch falseLbl)
-                  emitIR (Label trueLbl)
-                  emitIR (Move dst (MoveConst 1))
-                  emitIR (Label falseLbl)
-                  return (Just $ Temp dst)
-              else do
-                  emitIR (Branch falseLbl)
-                  return Nothing
+    case (src1, src2) of
+        (Const c1, Const c2)
+          | calcRelop relop c1 c2 && needValue -> do
+              dst <- getDstTemp
+              emitIR (Move dst (MoveConst 1))
+              return (Just $ Temp dst)
+          | calcRelop relop c1 c2 -> do
+              emitIR (Branch trueLbl)
+              return Nothing
+          | needValue -> do
+              dst <- getDstTemp
+              emitIR (Move dst (MoveConst 0))
+              return  (Just $ Temp dst)
+          | otherwise -> return Nothing
+        _ -> do
+            case (src1, src2) of
+                (_, Temp t) -> emitIR (BranchIf (invRelop relop) t src1 trueLbl)
+                (Temp t, _) -> emitIR (BranchIf relop t src2 trueLbl)
+                _           -> return ()
 
-    return res
+            if needValue
+               then do
+                   dst <- getDstTemp
+                   emitIR (Move dst (MoveConst 0))
+                   emitIR (Branch falseLbl)
+                   emitIR (Label trueLbl)
+                   emitIR (Move dst (MoveConst 1))
+                   emitIR (Label falseLbl)
+                   return (Just $ Temp dst)
+               else do
+                   emitIR (Branch falseLbl)
+                   return Nothing
 
 backpatchIfNeed :: TransM m => (Label -> m a) -> m (Seq (IR Temp), Label)
 backpatchIfNeed ma = do

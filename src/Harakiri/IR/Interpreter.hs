@@ -112,9 +112,9 @@ interpretFunction body = do
 
 interpretIR :: (Enum a, ShowReg a, InterpretM m) => IR a -> m ()
 interpretIR = \case
-    Neg dst src -> negate <$> readOperand src >>= setTemp dst
+    Neg dst src -> negate <$> readTemp src >>= setTemp dst
     Binop op dst src1 src2 ->
-        apBinop op <$> readOperand src1 <*> readOperand src2 >>= setTemp dst
+        apBinop op <$> readTemp src1 <*> readOperand src2 >>= setTemp dst
     Move dst src -> readMoveOperand src >>= setTemp dst
     Input dst -> do
         line <- liftIO TIO.getLine
@@ -144,7 +144,7 @@ interpretIR = \case
         pcRef <- asks progCounter
         liftIO $ writeIORef pcRef off
     BranchIf op src1 src2 lbl -> do
-        res <- apRelop op <$> readOperand src1 <*> readOperand src2
+        res <- apRelop op <$> readTemp src1 <*> readOperand src2
         when (res /= 0) $ do
             off <- getLabelOffset lbl
             pcRef <- asks progCounter
