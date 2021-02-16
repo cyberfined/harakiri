@@ -40,6 +40,7 @@ library
     , Harakiri.Compiler.Architecture
     , Harakiri.Compiler.Compile
     , Harakiri.Compiler.LiveAnalysis
+    , Harakiri.Compiler.RegisterAllocation
     , Harakiri.Utils
   hs-source-dirs:
       src
