@@ -22,13 +22,16 @@ instance Architecture Aarch64 Register where
     preserveRegisters  _  = [X30]
     stackPointer       _  = SP
     immDivMul          _  = False
-    translateToAsm _ strs funcs =  stringsToAsm strs <> "\n.text\n.globl main\n"
+    translateToAsm _ strs funcs =  stringsToAsm strs <> ".text\n.globl main\n"
                                 <> funcsToAsm funcs
 
 stringsToAsm :: [(Int, Text)] -> Text
-stringsToAsm strings = section <> content
+stringsToAsm strings
+  | null strs = ""
+  | otherwise = section <> content <> "\n"
   where section = ".section .rodata\n"
-        content = unlines $ map str strings
+        content = unlines $ strs
+        strs = map str strings
         str (i, s) = "str" <> showText i <> ": .string " <> showText s
 
 funcsToAsm :: [Function Register [IR Register]] -> Text
