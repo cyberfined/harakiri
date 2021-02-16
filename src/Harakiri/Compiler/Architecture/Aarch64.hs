@@ -87,7 +87,7 @@ irToAsm lblPrefix code = \case
             Add -> "add"
             Sub -> "sub"
             Div -> "sdiv"
-            Mul -> "smul"
+            Mul -> "mul"
 
         relopToAsm :: Relop -> Text
         relopToAsm = \case
