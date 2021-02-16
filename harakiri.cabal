@@ -35,6 +35,7 @@ library
     , Harakiri.IR.Types
     , Harakiri.IR.Translate
     , Harakiri.IR.Interpreter
+    , Harakiri.Compiler.LiveAnalysis
     , Harakiri.Utils
   hs-source-dirs:
       src
