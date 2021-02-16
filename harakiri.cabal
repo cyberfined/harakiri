@@ -28,6 +28,7 @@ library
     , Harakiri.IR
     , Harakiri.SourceCode
     , Harakiri.Compiler
+    , Harakiri.Compiler.Architecture.Aarch64
   other-modules:
       Harakiri.Expr.Types
     , Harakiri.Expr.Annotated
