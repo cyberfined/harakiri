@@ -1,6 +1,10 @@
 # Harakiri
 
-Compiler for a simple programming language named harakiri.
+Compiler for a simple programming language named harakiri to an assembly. It's implemented without LLVM or GCC backend. 
+
+## Supported architectures
+
+* Aarch64
 
 ## Syntax
 
