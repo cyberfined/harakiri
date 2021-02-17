@@ -8,7 +8,7 @@ import Data.Text (Text)
 import Harakiri.Expr.Types (Function)
 import Harakiri.IR.Types (IR, ShowReg(..))
 
-class (ShowReg b, Eq b, Enum b) => Architecture a b | a -> b where
+class (Eq a, ShowReg b, Eq b, Enum b) => Architecture a b | a -> b where
     wordSize :: a -> Int
     registers :: a -> [b]
     paramRegisters :: a -> [b]

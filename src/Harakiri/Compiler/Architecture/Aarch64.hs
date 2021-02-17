@@ -13,7 +13,7 @@ import Harakiri.Expr.Types (Function(..))
 import Harakiri.IR.Types
 import Harakiri.Utils
 
-data Aarch64 = Aarch64
+data Aarch64 = Aarch64 deriving Eq
 
 instance Architecture Aarch64 Register where
     wordSize           _  = 8
