@@ -76,3 +76,24 @@ def main() {
 - [x] IR generation
 - [x] Assembly language code generation
 - [ ] IR optimizations
+
+## Usage
+
+```
+Usage: harakiri [-v|--version] [-t|--dump-ast] [-i|--dump-ir] [-a|--arch ARCH] 
+                [-p|--platform OS] [-c PATH] [-o PATH] [-l PATH] 
+                [--as-path PATH] [--ld-path PATH]
+
+Available options:
+  -v,--version             Display compiler version information
+  -t,--dump-ast            Dump AST representation
+  -i,--dump-ir             Dump intermediate representation
+  -a,--arch ARCH           Set target architecture (default: aarch64)
+  -p,--platform OS         Set target operating system (default: linux)
+  -c PATH                  Set source file
+  -o PATH                  Set output file
+  -l PATH                  Set standard library path
+  --as-path PATH           Set path to the assembler
+  --ld-path PATH           Set path to the linker
+  -h,--help                Show this help text
+```
