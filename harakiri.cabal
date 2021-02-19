@@ -20,46 +20,6 @@ source-repository head
   type:     git
   location: https://github.com/cyberfined/harakiri
 
-library
-  exposed-modules:
-      Harakiri.Expr
-    , Harakiri.Parser
-    , Harakiri.TypeCheck
-    , Harakiri.IR
-    , Harakiri.SourceCode
-    , Harakiri.Compiler
-    , Harakiri.Compiler.Architecture.Aarch64
-  other-modules:
-      Harakiri.Expr.Types
-    , Harakiri.Expr.Annotated
-    , Harakiri.Expr.Shorthands
-    , Harakiri.Expr.Interpreter
-    , Harakiri.IR.Types
-    , Harakiri.IR.Translate
-    , Harakiri.IR.Interpreter
-    , Harakiri.Compiler.Architecture
-    , Harakiri.Compiler.Compile
-    , Harakiri.Compiler.LiveAnalysis
-    , Harakiri.Compiler.RegisterAllocation
-    , Harakiri.Utils
-  hs-source-dirs:
-      src
-  ghc-options: -Wall
-  default-extensions:
-      OverloadedStrings
-    , LambdaCase
-  build-depends:
-      base >= 4.7 && < 5
-    , data-fix >= 0.3 && < 1
-    , megaparsec >= 9 && < 10
-    , parser-combinators >= 1.2 && < 2
-    , text >= 1.2 && < 2
-    , unordered-containers >= 0.2 && < 1
-    , containers >= 0.6 && < 1
-    , mtl >= 2.2 && < 3
-    , array >= 0.5 && < 1
-  default-language: Haskell2010
-
 executable harakiri
   main-is: Main.hs
   other-modules:
@@ -73,28 +33,5 @@ executable harakiri
     , optparse-applicative >= 0.16 && < 1
     , filepath >= 1.4 && < 2
     , process >= 1.6 && < 2
-    , harakiri
-  default-language: Haskell2010
-
-test-suite harakiri-test
-  type: exitcode-stdio-1.0
-  main-is: Main.hs
-  other-modules:
-      ParserTests
-    , TypeCheckTests
-    , IRTranslateTests
-    , InterpreterTests
-    , Common
-  hs-source-dirs:
-      tests
-  ghc-options: -Wall
-  default-extensions:
-      OverloadedStrings
-  build-depends:
-      base >= 4.7 && < 5
-    , HUnit >= 1.6 && < 2
-    , text >= 1.2 && < 2
-    , directory >= 1.3 && < 2
-    , filepath >= 1.4 && < 2
-    , harakiri
+    , harakiri-lib
   default-language: Haskell2010
